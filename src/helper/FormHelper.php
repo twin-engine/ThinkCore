@@ -8,7 +8,6 @@ namespace think\admin\helper;
 use think\admin\Helper;
 use think\admin\service\SystemService;
 use think\admin\service\AdminService;
-use think\admin\model\SystemUserToken;
 use think\db\BaseQuery;
 use think\Model;
 
