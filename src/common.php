@@ -400,21 +400,3 @@ if(!function_exists('desensitize')){
         return implode('',$str_arr);
     }
 }
-if(!function_exists('content_nofollow')){
-    
-    function content_nofollow($content,$domain){
-        preg_match_all('/href="(.*?)"/',$content,$matches);
-        if($matches){
-        foreach($matches[1] as $val){
-            if(!in_array($val,$domain)) $content=str_replace('href="'.$val.'"', 'href="'.$val.'"',$content);
-            }
-        }
-        preg_match_all('/src="(.*?)"/',$content,$matches);
-        if($matches){
-            foreach($matches[1] as $val){
-                if(!in_array($val,$domain)) $content=str_replace('src="'.$val.'"', 'src="'.$val.'"',$content);
-            }
-        }
-     return $content;
-    }
-}
