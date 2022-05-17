@@ -51,12 +51,12 @@ class EmailService extends Service
      */
     protected function initialize()
     {
-        $this->emailHost = config('EMAIL','emailHost');
-        $this->emailUsername = config('EMAIL','emailUsername');
-        $this->emailPassword = config('EMAIL','emailPassword');
-        $this->emailPort = config('EMAIL','emailPort');
-        $this->emailFrom = config('EMAIL','emailFrom');
-        $this->emailFromName = config('EMAIL','emailFromName');
+        $this->emailHost = syconfig('EMAIL','emailHost');
+        $this->emailUsername = syconfig('EMAIL','emailUsername');
+        $this->emailPassword = syconfig('EMAIL','emailPassword');
+        $this->emailPort = syconfig('EMAIL','emailPort');
+        $this->emailFrom = syconfig('EMAIL','emailFrom');
+        $this->emailFromName = syconfig('EMAIL','emailFromName');
     }
     
     /**

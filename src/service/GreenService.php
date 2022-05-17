@@ -53,9 +53,8 @@ class GreenService extends Service
      */
     protected function initialize()
     {
-        $this->accesskey_id = config('ALIBABA_GREEN','AccessKeyID');//$this->app->config->get('green.accesskey_id');
-        $this->accesskey_secret = config('ALIBABA_GREEN','AccessKeySecret');//$this->app->config->get('green.accesskey_secret');
-       // $this->scenes = $this->app->config->get('green.scenes');
+        $this->accesskey_id = syconfig('ALIBABA_GREEN','AccessKeyID');
+        $this->accesskey_secret = syconfig('ALIBABA_GREEN','AccessKeySecret');
     }
     /**
      * 文本检测

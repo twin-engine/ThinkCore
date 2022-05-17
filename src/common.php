@@ -83,7 +83,7 @@ if (!function_exists('sysconf')) {
         }
     }
 }
-if (!function_exists('config')) {
+if (!function_exists('syconfig')) {
     /**
      * 获取系统参数
      * @param string $groupCode 常量的分类名称
@@ -93,7 +93,7 @@ if (!function_exists('config')) {
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    function config(string $groupCode = '', string $code = '')
+    function syconfig(string $groupCode = '', string $code = '')
     {
         return SystemService::instance()->getConfig($groupCode, $code);
     }
