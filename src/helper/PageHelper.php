@@ -91,7 +91,9 @@ class PageHelper extends Helper
                 if(in_array($field,['email','contact_mail','mail'])){
                     foreach($items as &$v){
                         if($v[$field]){
-                            $v[$field] = desensitize($v[$field],2,8);
+                            $newfield = explode('@',$v[$field]);
+                            $len = strlen($newfield[1]);
+                            $v[$field] = desensitize($v[$field],1,$len+1);
                         }
                     }
                 }
