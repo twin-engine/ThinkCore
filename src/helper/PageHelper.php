@@ -92,8 +92,8 @@ class PageHelper extends Helper
                     foreach($items as &$v){
                         if($v[$field]){
                             $newfield = explode('@',$v[$field]);
-                            $len = strlen($newfield[1]);
-                            $v[$field] = desensitize($v[$field],1,$len+1);
+                            $len = strlen($newfield[1]) + 1;
+                            $v[$field] = desensitize($v[$field],1,$len);
                         }
                     }
                 }
