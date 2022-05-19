@@ -49,7 +49,7 @@ class ExpressService extends Service
     protected function initialize(): ExpressService
     {
         // 获取当前请求 IP 地址
-        $clentip = $this->app->request->ip();
+        $clentip = real_ip();
         if (empty($clentip) || $clentip === '0.0.0.0') {
             $clentip = join('.', [rand(1, 254), rand(1, 254), rand(1, 254), rand(1, 254)]);
         }

@@ -330,7 +330,7 @@ class SystemService extends Service
         return [
             'node'      => NodeService::instance()->getCurrent(),
             'action'    => $action, 'content' => $content,
-            'geoip'     => $this->app->request->ip() ?: '127.0.0.1',
+            'geoip'     => real_ip() ?: '127.0.0.1',
             'username'  => AdminService::instance()->getUserName() ?: $username,
             'create_at' => date('Y-m-d H:i:s'),
         ];
