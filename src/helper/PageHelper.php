@@ -73,11 +73,11 @@ class PageHelper extends Helper
         if (method_exists($query, 'getTableFields')) {
             $fields = $query->getTableFields();
             foreach($fields as $field){
-                if(in_array($field,['image','image_id','pic','img'])){
+                if(in_array($field,['image','image_id','pic','img','logo','certificate','license'])){
                     foreach($items as &$v){
                         if($v[$field]){
                             $ids = explode(',',$v[$field]);
-                            $v['image'] = $this->autoSortQuery('sys_upload_file')->whereIn('id',$ids)->select()->toArray();
+                            $v[$field.'Arr'] = $this->autoSortQuery('sys_upload_file')->whereIn('id',$ids)->select()->toArray();
                         }
                     }
                 }

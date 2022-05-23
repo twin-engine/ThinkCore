@@ -447,3 +447,58 @@ if(!function_exists('real_ip')){
         return $realip;
     }
 }
+if (!function_exists('http_post_data')) {
+    /*
+    *蚂蚁区块链
+    *
+    */
+    function http_post_data($url, $data_string) {
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_POST, 1);
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
+    	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+    		'Content-Type: application/json; charset=utf-8',
+    		'Content-Length: ' . strlen($data_string))
+    	);
+        ob_start();
+        curl_exec($ch);
+        $return_content = ob_get_contents();
+        ob_end_clean();
+    
+        $return_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        return array($return_code, $return_content);
+    }
+    
+}
+
+if (!function_exists('getUnixTimestamp')) {
+    /*
+    *13位时间戳
+    *
+    */
+    function getUnixTimestamp ()
+    {
+        list($s1, $s2) = explode(' ', microtime());
+        return (float)sprintf('%.0f',(floatval($s1) + floatval($s2)) * 1000);
+    }   
+}
+
+if (!function_exists('curls')) {
+    function curls($url, $timeout = '15')
+    {
+        // 1. 初始化
+        $ch = curl_init();
+        // 2. 设置选项，包括URL
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_HEADER, 0);
+        // 3. 执行并获取HTML文档内容
+        $info = curl_exec($ch);
+        // 4. 释放curl句柄
+        curl_close($ch);
+ 
+        return $info;
+    }
+}
