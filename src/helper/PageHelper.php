@@ -72,15 +72,23 @@ class PageHelper extends Helper
      {
         if (method_exists($query, 'getTableFields')) {
             $fields = $query->getTableFields();
-            foreach($fields as $field){
-                if(in_array($field,['image','image_id','pic','img','logo','certificate','license'])){
-                    foreach($items as &$v){
-                        if($v[$field]){
-                            $ids = explode(',',$v[$field]);
-                            $v[$field.'Arr'] = $this->autoSortQuery('sys_upload_file')->whereIn('id',$ids)->select()->toArray();
+            if(count($items)>0){
+                $itemsFields = array_keys($items[0]);
+                //数据中含有图片ID的字段通过键名判断获取相应图片URL(图片数组命名方式：字段名+Arr,例字段logo,则对应为logoArr)
+                foreach($itemsFields as $field){
+                   if(in_array($field,['image','image_id','pic','img','logo','certificate','license'])){
+                        foreach($items as &$v){
+                            if($v[$field]){
+                                $ids = explode(',',$v[$field]);
+                                $v[$field.'Arr'] = $this->autoSortQuery('sys_upload_file')->whereIn('id',$ids)->select()->toArray();
+                            }
                         }
-                    }
+                    } 
                 }
+            }
+            //特殊字段的后期处理方式，读取表字段
+            foreach($fields as $field){
+                //手机号，电话号脱敏
                 if(in_array($field,['phone','contact_phone','mobile','tel'])){
                     foreach($items as &$v){
                         if($v[$field]){
@@ -88,6 +96,7 @@ class PageHelper extends Helper
                         }
                     }
                 }
+                //邮箱脱敏
                 if(in_array($field,['email','contact_mail','mail'])){
                     foreach($items as &$v){
                         if($v[$field]){
@@ -97,7 +106,8 @@ class PageHelper extends Helper
                         }
                     }
                 }
-                if(in_array($field,['leader','realname','nickname'])){
+                //姓名，真名脱敏
+                if(in_array($field,['leader','realname'])){
                     foreach($items as &$v){
                         if($v[$field]){
                             $v[$field] = desensitize($v[$field],1,1);
