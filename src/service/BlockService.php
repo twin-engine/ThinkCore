@@ -125,7 +125,7 @@ class BlockService extends Service
     *@params string $content 存证内容 字符串
     *@return array
     */
-    public function existingEvidence($uid,$content,$oldContent)
+    public function existingEvidence($uid,$type,$content,$oldContent)
     {
         if(!$this->checkGas($this->app->request->header('TenantId'))) return false;
         $params = [//固定参数
@@ -150,7 +150,7 @@ class BlockService extends Service
         $dat = [];
         $dat['tenant_id'] = $this->app->request->header('TenantId');
         $dat['created_by'] = $uid;
-        $dat['type'] = 1;
+        $dat['type'] = $type?$type:1;
         $dat['stype'] = 1;
         $dat['md5value'] = $content;
         $dat['content'] = $oldContent;

@@ -81,6 +81,8 @@ class PageHelper extends Helper
                             if($v[$field]){
                                 $ids = explode(',',$v[$field]);
                                 $v[$field.'Arr'] = $this->autoSortQuery('sys_upload_file')->whereIn('id',$ids)->select()->toArray();
+                                if(count($v[$field.'Arr'])==1) $v[$field.'_url'] = $v[$field.'Arr'][0]['url'];
+                                
                             }
                         }
                     } 

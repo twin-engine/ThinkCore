@@ -502,3 +502,42 @@ if (!function_exists('curls')) {
         return $info;
     }
 }
+if (!function_exists('TimeToSeconds')) {
+    /**
+     * 时间转换
+     */
+    function TimeToSeconds($end_time)
+    {
+        date_default_timezone_set('Asia/Shanghai');
+        $now = time();
+        $expires_in = $end_time;
+        $expires = $expires_in - $now;
+        if($expires > 0){
+            $seconds = (int)$expires;
+            if( $seconds < 60 ){
+                $format_time = gmstrftime('%S秒' , $seconds);
+            }elseif( $seconds < 3600 ){
+                $format_time = gmstrftime('%M分%S秒' , $seconds);
+            }elseif( $seconds < 86400 ){
+                $format_time = gmstrftime('%H时%M分%S秒' , $seconds);
+            }else{
+                $time = explode(' ' , gmstrftime('%j %H %M %S' , $seconds));//Array ( [0] => 04 [1] => 14 [2] => 14 [3] => 35 )
+                $format_time = ( $time[0] - 1 ) . '天' . $time[1] . '时' . $time[2] . '分' . $time[3] . '秒';
+            }
+            return ltrim($format_time,0);
+        }else{
+            return 0;
+        }
+    }
+}
+if(!function_exists('get_http_type'))
+{
+    /**
+     * 获取当前网址协议
+     */
+    function get_http_type()
+    {
+        $http_type = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) ? 'https://' : 'http://';
+        return $http_type;
+    }
+}
