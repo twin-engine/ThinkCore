@@ -3,7 +3,6 @@
 declare (strict_types=1);
 
 namespace think\admin\service;
-
 use think\admin\Service;
 use think\admin\extend\CodeExtend;
 use think\admin\extend\HttpExtend;
