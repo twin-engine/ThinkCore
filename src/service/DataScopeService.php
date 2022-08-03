@@ -1,9 +1,7 @@
 <?php
-
 declare (strict_types=1);
 
 namespace think\admin\service;
-
 
 use think\admin\model\SystemUserToken;
 use think\admin\model\SysUserRole;
@@ -12,6 +10,7 @@ use think\admin\model\SystemUser;
 use think\admin\model\SysDept;
 use think\admin\model\SysRole;
 use think\admin\Service;
+
 
 /**
  * 数据权限服务

@@ -1,6 +1,4 @@
 <?php
-
-
 namespace think\admin;
 
 use Closure;
@@ -21,6 +19,7 @@ use think\middleware\SessionInit;
 use think\Request;
 use think\Service;
 use function Composer\Autoload\includeFile;
+
 
 /**
  * 模块注册服务
