@@ -74,7 +74,7 @@ class PageHelper extends Helper
                 $itemsFields = array_keys($items[0]);
                 //数据中含有图片ID的字段通过键名判断获取相应图片URL(图片数组命名方式：字段名+Arr,例字段logo,则对应为logoArr)
                 foreach($itemsFields as $field){
-                   if(in_array($field,['image','image_id','pic','img','logo','certificate','license'])){
+                   if(in_array($field,['image','image_id','pic','img','logo','certificate','license','business_license','qualification_documents'])){
                         foreach($items as &$v){
                             if($v[$field]){
                                 $ids = explode(',',$v[$field]);
