@@ -56,7 +56,6 @@ class QueryHelper extends Helper
     public function init($dbQuery, $input = null, ?callable $callable = null): QueryHelper
     {
         $this->page = PageHelper::instance();
-        //$this->input = $this->getInputData($input);
         //增加数据访问权限（数据隔离）
         $this->input = $this->setPrermission($this->getInputData($input));
         $this->query = $this->page->autoSortQuery($dbQuery);

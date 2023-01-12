@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin;
@@ -31,25 +30,17 @@ abstract class Command extends \think\console\Command
 
     /**
      * 初始化指令变量
-     * @param Input $input
-     * @param Output $output
-     * @return static
+     * @param \think\console\Input $input
+     * @param \think\console\Output $output
+     * @return $this
      * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function initialize(Input $input, Output $output): Command
     {
         $this->queue = QueueService::instance();
         $this->process = ProcessService::instance();
-        if (defined('WorkQueueCode')) {
-            if (!$this->queue instanceof QueueService) {
-                $this->queue = QueueService::instance();
-            }
-            if ($this->queue->code !== WorkQueueCode) {
-                $this->queue->initialize(WorkQueueCode);
-            }
+        if (defined('WorkQueueCode') && $this->queue->code !== WorkQueueCode) {
+            $this->queue->initialize(WorkQueueCode);
         }
         return $this;
     }
@@ -57,30 +48,30 @@ abstract class Command extends \think\console\Command
     /**
      * 设置失败消息并结束进程
      * @param string $message 消息内容
-     * @throws Exception
+     * @throws \think\admin\Exception
      */
     protected function setQueueError(string $message)
     {
         if (defined('WorkQueueCode')) {
             $this->queue->error($message);
         } else {
-            $this->output->writeln($message);
-            exit("\r\n");
+            $this->process->message($message);
+            exit(0);
         }
     }
 
     /**
      * 设置成功消息并结束进程
      * @param string $message 消息内容
-     * @throws Exception
+     * @throws \think\admin\Exception
      */
     protected function setQueueSuccess(string $message)
     {
         if (defined('WorkQueueCode')) {
             $this->queue->success($message);
         } else {
-            $this->output->writeln($message);
-            exit("\r\n");
+            $this->process->message($message);
+            exit(0);
         }
     }
 
@@ -96,7 +87,7 @@ abstract class Command extends \think\console\Command
         if (defined('WorkQueueCode')) {
             $this->queue->progress(2, $message, $progress, $backline);
         } elseif (is_string($message)) {
-            $this->output->writeln($message);
+            $this->process->message($message, $backline);
         }
         return $this;
     }
@@ -111,8 +102,7 @@ abstract class Command extends \think\console\Command
      */
     public function setQueueMessage(int $total, int $count, string $message = '', int $backline = 0): Command
     {
-        $total = max($total, 1);
-        $prefix = str_pad("{$count}", strlen("{$total}"), '0', STR_PAD_LEFT);
-        return $this->setQueueProgress("[{$prefix}/{$total}] {$message}", sprintf("%.2f", $count / $total * 100), $backline);
+        $this->queue->message($total, $count, $message, $backline);
+        return $this;
     }
 }

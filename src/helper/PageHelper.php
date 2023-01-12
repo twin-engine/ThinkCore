@@ -7,7 +7,6 @@ use think\admin\Helper;
 use think\admin\service\AdminService;
 use think\db\BaseQuery;
 use think\db\Query;
-use think\exception\HttpResponseException;
 use think\Model;
 
 /**
@@ -33,7 +32,7 @@ class PageHelper extends Helper
     public function init($dbQuery, bool $page = true, bool $display = false, $total = false, int $limit = 0, string $template = ''): array
     {
         $query = $this->autoSortQuery($dbQuery);
-        if ($page) {
+        if ($page !== false) {
             $get = $this->app->request->get();
             $limits = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
             if ($limit <= 1) {

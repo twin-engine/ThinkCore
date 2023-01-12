@@ -23,6 +23,9 @@ class DataScopeService extends Service
     /**
      * 获取用户ID集合
      * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function setDataScope(): array
     {
@@ -42,13 +45,14 @@ class DataScopeService extends Service
 
     /**
      * 数据范围查询
-     * @param $userid
-     * @param $role_ids
-     * @return mixed
+     * @param int $userid
+     * @param array $roles
+     * @param array $role_ids
+     * @return $this|void
      */
-    public function dataRange(int $userid, $roles = [], $role_ids = [])
+    public function dataRange(int $userid, array $roles = [], array $role_ids = [])
     {
-        if (AdminService::instance()->isSuper()) {
+        if (AdminService::isSuper()) {
             return $this;
         }
 
@@ -61,11 +65,12 @@ class DataScopeService extends Service
 
     /**
      * 获取部门IDs
-     *
-     * @param $roles
+     * @param int $userid
+     * @param array $roles
+     * @param array $role_ids
      * @return array
      */
-    public function getDeptUserIdsBy(int $userid, $roles = [], $role_ids = [])
+    public function getDeptUserIdsBy(int $userid, array $roles = [], array $role_ids = []):array
     {
         $userIds = [];
         $isAll = false;
@@ -107,16 +112,15 @@ class DataScopeService extends Service
                 break;
             }
         }
-        //p($userIds);
         return $userIds;
     }
 
     /**
      * 获取UserID
-     * @param $id
+     * @param array $id
      * @return array
      */
-    protected function getUserIdsByDeptId(array $id)
+    protected function getUserIdsByDeptId(array $id):array
     {
         return SystemUser::mk()->whereIn('dept_id', $id)->column('id');
     }

@@ -1,11 +1,11 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin;
 
 use stdClass;
+use think\admin\extend\JwtExtend;
 use think\admin\helper\DeleteHelper;
 use think\admin\helper\FormHelper;
 use think\admin\helper\PageHelper;
@@ -78,7 +78,7 @@ class Controller extends stdClass
             $this->error('Access without permission.');
         }
         $this->get = $this->request->get();
-        $this->node = NodeService::instance()->getCurrent();
+        $this->node = NodeService::getCurrent();
         $this->initialize();
     }
 
@@ -95,11 +95,11 @@ class Controller extends stdClass
      * @param mixed $data 返回数据
      * @param mixed $code 返回代码
      */
-    public function error($info, $data = '{-null-}', $code = 0, $success = false): void
+    public function error($info, $data = '{-null-}', $code = 0): void
     {
         if ($data === '{-null-}') $data = new stdClass();
         throw new HttpResponseException(json([
-            'success' => $success, 'code' => $code, 'message' => $info, 'data' => $data,
+            'code' => $code, 'info' => $info, 'data' => $data,
         ]));
     }
 
@@ -109,15 +109,14 @@ class Controller extends stdClass
      * @param mixed $data 返回数据
      * @param mixed $code 返回代码
      */
-    public function success($info, $data = '{-null-}', $code = 200, $success = true): void
+    public function success($info, $data = '{-null-}', $code = 1): void
     {
-        if ($this->csrf_state) {
-            TokenHelper::instance()->clear();
-        }
         if ($data === '{-null-}') $data = new stdClass();
-        throw new HttpResponseException(json([
-           'success' => $success, 'code' => $code, 'message' => $info, 'data' => $data,
-        ]));
+        $result = ['code' => $code, 'info' => $info, 'data' => $data];
+        if (JwtExtend::getOutToken()) {
+            $result['token'] = JwtExtend::getToken(JwtExtend::getOutData());
+        }
+        throw new HttpResponseException(json($result));
     }
 
     /**
@@ -138,11 +137,17 @@ class Controller extends stdClass
      */
     public function fetch(string $tpl = '', array $vars = [], ?string $node = null): void
     {
-        foreach ($this as $name => $value) $vars[$name] = $value;
-        if ($this->csrf_state) {
-            TokenHelper::instance()->fetchTemplate($tpl, $vars, $node);
+        if (JwtExtend::$isJwt) {
+            JwtExtend::fetch($this, $vars);
         } else {
-            throw new HttpResponseException(view($tpl, $vars));
+            foreach ($this as $name => $value) {
+                $vars[$name] = $value;
+            }
+            if ($this->csrf_state) {
+                TokenHelper::fetch($tpl, $vars, $node);
+            } else {
+                throw new HttpResponseException(view($tpl, $vars));
+            }
         }
     }
 
@@ -185,7 +190,7 @@ class Controller extends stdClass
 
     /**
      * 快捷查询逻辑器
-     * @param Model|BaseQuery|string $dbQuery
+     * @param BaseQuery|Model|string $dbQuery
      * @param array|string|null $input
      * @return QueryHelper
      * @throws \think\db\exception\DbException
@@ -197,8 +202,8 @@ class Controller extends stdClass
 
     /**
      * 快捷分页逻辑器
-     * @param Model|BaseQuery|string $dbQuery
-     * @param boolean $page 是否启用分页
+     * @param BaseQuery|Model|string $dbQuery
+     * @param boolean|integer $page 是否分页或指定分页
      * @param boolean $display 是否渲染模板
      * @param boolean|integer $total 集合分页记录数
      * @param integer $limit 集合每页记录数
@@ -208,14 +213,14 @@ class Controller extends stdClass
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    protected function _page($dbQuery, bool $page = true, bool $display = true, $total = false, int $limit = 0, string $template = ''): array
+    protected function _page($dbQuery, $page = true, bool $display = true, $total = false, int $limit = 0, string $template = ''): array
     {
         return PageHelper::instance()->init($dbQuery, $page, $display, $total, $limit, $template);
     }
 
     /**
      * 快捷表单逻辑器
-     * @param Model|BaseQuery|string $dbQuery
+     * @param BaseQuery|Model|string $dbQuery
      * @param string $template 模板名称
      * @param string $field 指定数据对象主键
      * @param mixed $where 额外更新条件
@@ -244,7 +249,7 @@ class Controller extends stdClass
 
     /**
      * 快捷更新逻辑器
-     * @param Model|BaseQuery|string $dbQuery
+     * @param BaseQuery|Model|string $dbQuery
      * @param array $data 表单扩展数据
      * @param string $field 数据对象主键
      * @param mixed $where 额外更新条件
@@ -258,7 +263,7 @@ class Controller extends stdClass
 
     /**
      * 快捷删除逻辑器
-     * @param Model|BaseQuery|string $dbQuery
+     * @param BaseQuery|Model|string $dbQuery
      * @param string $field 数据对象主键
      * @param mixed $where 额外更新条件
      * @return boolean|null
@@ -291,19 +296,20 @@ class Controller extends stdClass
     protected function _queue(string $title, string $command, int $later = 0, array $data = [], int $rscript = 0, int $loops = 0)
     {
         try {
-            $queue = QueueService::instance()->register($title, $command, $later, $data, $rscript, $loops);
-            $this->success('创建任务成功！', $queue->code);
+            $queue = QueueService::register($title, $command, $later, $data, $rscript, $loops);
+            $this->success(lang('创建任务成功！'), $queue->code);
         } catch (Exception $exception) {
             $code = $exception->getData();
             if (is_string($code) && stripos($code, 'Q') === 0) {
-                $this->success('任务已经存在，无需再次创建！', $code);
+                $this->success(lang('任务已经存在，无需再次创建！'), $code);
             } else {
                 $this->error($exception->getMessage());
             }
         } catch (HttpResponseException $exception) {
             throw $exception;
         } catch (\Exception $exception) {
-            $this->error("创建任务失败，{$exception->getMessage()}");
+            trace_file($exception);
+            $this->error(lang('创建任务失败，%s', [$exception->getMessage()]));
         }
     }
 }

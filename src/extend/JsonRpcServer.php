@@ -53,10 +53,10 @@ class JsonRpcServer
             // Reads the input data
             $request = json_decode(file_get_contents('php://input'), true) ?: [];
             if (empty($request)) {
-                $error = ['code' => '-32700', 'message' => '语法解析错误', 'meaning' => '服务端接收到无效的JSON'];
+                $error = ['code' => '-32700', 'message' => lang('Syntax parsing error.'), 'meaning' => lang('Invalid JSON parameter.')];
                 $response = ['jsonrpc' => '2.0', 'id' => '0', 'result' => null, 'error' => $error];
             } elseif (!isset($request['id']) || !isset($request['method']) || !isset($request['params'])) {
-                $error = ['code' => '-32600', 'message' => '无效的请求', 'meaning' => '发送的JSON不是一个有效的请求对象'];
+                $error = ['code' => '-32600', 'message' => lang('Invalid request.'), 'meaning' => lang('Invalid JSON parameter.')];
                 $response = ['jsonrpc' => '2.0', 'id' => $request['id'] ?? '0', 'result' => null, 'error' => $error];
             } else try {
                 if ($object instanceof \Exception) {
@@ -67,14 +67,15 @@ class JsonRpcServer
                     $result = call_user_func_array([$object, $request['method']], $request['params']);
                     $response = ['jsonrpc' => '2.0', 'id' => $request['id'], 'result' => $result, 'error' => null];
                 } else {
-                    $error = ['code' => '-32601', 'message' => '找不到方法', 'meaning' => '该方法不存在或无效'];
+                    $info = lang('method not exists: %s::%s', [class_basename($object), $request['method']]);
+                    $error = ['code' => '-32601', 'message' => $info, 'meaning' => lang('The method does not exist or is invalid.')];
                     $response = ['jsonrpc' => '2.0', 'id' => $request['id'], 'result' => null, 'error' => $error];
                 }
             } catch (\think\admin\Exception $exception) {
-                $error = ['code' => $exception->getCode(), 'message' => $exception->getMessage(), 'meaning' => '数据处理异常'];
+                $error = ['code' => $exception->getCode(), 'message' => lang($exception->getMessage()), 'meaning' => lang('Business Exception.')];
                 $response = ['jsonrpc' => '2.0', 'id' => $request['id'], 'result' => $exception->getData(), 'error' => $error];
             } catch (\Exception $exception) {
-                $error = ['code' => $exception->getCode(), 'message' => $exception->getMessage(), 'meaning' => '系统处理异常'];
+                $error = ['code' => $exception->getCode(), 'message' => lang($exception->getMessage()), 'meaning' => lang('System Exception.')];
                 $response = ['jsonrpc' => '2.0', 'id' => $request['id'], 'result' => null, 'error' => $error];
             }
             // Output the response
@@ -96,6 +97,7 @@ class JsonRpcServer
                 $params = [];
                 foreach ($method->getParameters() as $parameter) {
                     $type = $parameter->getType();
+                    if ($type instanceof \ReflectionType) $type = $type->getName();
                     $params[] = ($type ? "{$type} $" : '$') . $parameter->getName();
                 }
                 $params = count($params) > 0 ? join(', ', $params) : '';

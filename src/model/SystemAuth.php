@@ -1,7 +1,5 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\model;
@@ -45,18 +43,16 @@ class SystemAuth extends Model
      */
     public function onAdminDelete(string $ids)
     {
-        if (count($aids = str2arr($ids ?? '')) > 0) {
-            SystemNode::mk()->whereIn('auth', $aids)->delete();
-        }
-        sysoplog($this->oplogType, "删除{$this->oplogName}[{$ids}]及授权配置");
+        if (count($aids = str2arr($ids)) > 0) SystemNode::mk()->whereIn('auth', $aids)->delete();
+        sysoplog($this->oplogType, lang("删除%s[%s]及授权配置", [lang($this->oplogName), $ids]));
     }
 
     /**
      * 格式化创建时间
-     * @param string $value
+     * @param mixed $value
      * @return string
      */
-    public function getCreateAtAttr(string $value): string
+    public function getCreateAtAttr($value): string
     {
         return format_datetime($value);
     }

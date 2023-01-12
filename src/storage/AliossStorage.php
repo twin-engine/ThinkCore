@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin\storage;
@@ -55,27 +54,15 @@ class AliossStorage extends Storage
         $this->accessKey = sysconf('storage.alioss_access_key');
         $this->secretKey = sysconf('storage.alioss_secret_key');
         // 计算链接前缀
+        $host = strtolower(sysconf('storage.alioss_http_domain'));
         $type = strtolower(sysconf('storage.alioss_http_protocol'));
-        $domain = strtolower(sysconf('storage.alioss_http_domain'));
         if ($type === 'auto') {
-            $this->prefix = "//{$domain}";
+            $this->domain = "//{$host}";
         } elseif (in_array($type, ['http', 'https'])) {
-            $this->prefix = "{$type}://{$domain}";
-        } else throw new Exception('未配置阿里云URL域名哦');
-    }
-
-    /**
-     * 获取当前实例对象
-     * @param null|string $name
-     * @return static
-     * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    public static function instance(?string $name = null)
-    {
-        return parent::instance('alioss');
+            $this->domain = "{$type}://{$host}";
+        } else {
+            throw new Exception(lang('未配置阿里云URL域名哦'));
+        }
     }
 
     /**
@@ -125,7 +112,7 @@ class AliossStorage extends Storage
     public function del(string $name, bool $safe = false): bool
     {
         [$file] = explode('?', $name);
-        $result = HttpExtend::request('DELETE', "http://{$this->bucket}.{$this->point}/{$file}", [
+        $result = HttpExtend::request('DELETE', "https://{$this->bucket}.{$this->point}/{$file}", [
             'returnHeader' => true, 'headers' => $this->headerSign('DELETE', $file),
         ]);
         return is_numeric(stripos($result, '204 No Content'));
@@ -140,7 +127,7 @@ class AliossStorage extends Storage
     public function has(string $name, bool $safe = false): bool
     {
         $file = $this->delSuffix($name);
-        $result = HttpExtend::request('HEAD', "http://{$this->bucket}.{$this->point}/{$file}", [
+        $result = HttpExtend::request('HEAD', "https://{$this->bucket}.{$this->point}/{$file}", [
             'returnHeader' => true, 'headers' => $this->headerSign('HEAD', $file),
         ]);
         return is_numeric(stripos($result, 'HTTP/1.1 200 OK'));
@@ -155,7 +142,7 @@ class AliossStorage extends Storage
      */
     public function url(string $name, bool $safe = false, ?string $attname = null): string
     {
-        return "{$this->prefix}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
+        return "{$this->domain}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
     }
 
     /**
@@ -219,13 +206,13 @@ class AliossStorage extends Storage
      * 操作请求头信息签名
      * @param string $method 请求方式
      * @param string $soruce 资源名称
-     * @param array $header 请求头信息
      * @return array
      */
-    private function headerSign(string $method, string $soruce, array $header = []): array
+    private function headerSign(string $method, string $soruce): array
     {
-        if (empty($header['Date'])) $header['Date'] = gmdate('D, d M Y H:i:s \G\M\T');
-        if (empty($header['Content-Type'])) $header['Content-Type'] = 'application/xml';
+        $header = [];
+        $header['Date'] = gmdate('D, d M Y H:i:s \G\M\T');
+        $header['Content-Type'] = 'application/xml';
         uksort($header, 'strnatcasecmp');
         $content = "{$method}\n\n";
         foreach ($header as $key => $value) {
@@ -250,30 +237,34 @@ class AliossStorage extends Storage
     public static function region(): array
     {
         return [
-            'oss-cn-hangzhou.aliyuncs.com'    => '华东 1（杭州）',
-            'oss-cn-shanghai.aliyuncs.com'    => '华东 2（上海）',
-            'oss-cn-qingdao.aliyuncs.com'     => '华北 1（青岛）',
-            'oss-cn-beijing.aliyuncs.com'     => '华北 2（北京）',
-            'oss-cn-zhangjiakou.aliyuncs.com' => '华北 3（张家口）',
-            'oss-cn-huhehaote.aliyuncs.com'   => '华北 5（呼和浩特）',
-            'oss-cn-wulanchabu.aliyuncs.com'  => '华北 6（乌兰察布）',
-            'oss-cn-shenzhen.aliyuncs.com'    => '华南 1（深圳）',
-            'oss-cn-heyuan.aliyuncs.com'      => '华南 2（河源）',
-            'oss-cn-guangzhou.aliyuncs.com'   => '华南 3（广州）',
-            'oss-cn-chengdu.aliyuncs.com'     => '西南 1（成都）',
-            'oss-cn-hongkong.aliyuncs.com'    => '中国（香港）',
-            'oss-us-west-1.aliyuncs.com'      => '美国（硅谷）',
-            'oss-us-east-1.aliyuncs.com'      => '美国（弗吉尼亚）',
-            'oss-ap-southeast-1.aliyuncs.com' => '亚太东南 1（新加坡）',
-            'oss-ap-southeast-2.aliyuncs.com' => '亚太东南 2（悉尼）',
-            'oss-ap-southeast-3.aliyuncs.com' => '亚太东南 3（吉隆坡）',
-            'oss-ap-southeast-5.aliyuncs.com' => '亚太东南 5（雅加达）',
-            'oss-ap-southeast-6.aliyuncs.com' => '亚太东南 6（马尼拉）',
-            'oss-ap-northeast-1.aliyuncs.com' => '亚太东北 1（日本）',
-            'oss-ap-south-1.aliyuncs.com'     => '亚太南部 1（孟买）',
-            'oss-eu-central-1.aliyuncs.com'   => '欧洲中部 1（法兰克福）',
-            'oss-eu-west-1.aliyuncs.com'      => '英国（伦敦）',
-            'oss-me-east-1.aliyuncs.com'      => '中东东部 1（迪拜）',
+            'oss-cn-hangzhou.aliyuncs.com'    => lang('华东 1（杭州）'),
+            'oss-cn-shanghai.aliyuncs.com'    => lang('华东 2（上海）'),
+            'oss-cn-nanjing.aliyuncs.com'     => lang('华东 5（南京本地地域）'),
+            'oss-cn-fuzhou.aliyuncs.com'      => lang('华东 6（福州本地地域）'),
+            'oss-cn-qingdao.aliyuncs.com'     => lang('华北 1（青岛）'),
+            'oss-cn-beijing.aliyuncs.com'     => lang('华北 2（北京）'),
+            'oss-cn-zhangjiakou.aliyuncs.com' => lang('华北 3（张家口）'),
+            'oss-cn-huhehaote.aliyuncs.com'   => lang('华北 5（呼和浩特）'),
+            'oss-cn-wulanchabu.aliyuncs.com'  => lang('华北 6（乌兰察布）'),
+            'oss-cn-shenzhen.aliyuncs.com'    => lang('华南 1（深圳）'),
+            'oss-cn-heyuan.aliyuncs.com'      => lang('华南 2（河源）'),
+            'oss-cn-guangzhou.aliyuncs.com'   => lang('华南 3（广州）'),
+            'oss-cn-chengdu.aliyuncs.com'     => lang('西南 1（成都）'),
+            'oss-cn-hongkong.aliyuncs.com'    => lang('中国（香港）'),
+            'oss-us-west-1.aliyuncs.com'      => lang('美国（硅谷）'),
+            'oss-us-east-1.aliyuncs.com'      => lang('美国（弗吉尼亚）'),
+            'oss-ap-northeast-1.aliyuncs.com' => lang('日本（东京）'),
+            'oss-ap-northeast-2.aliyuncs.com' => lang('韩国（首尔）'),
+            'oss-ap-southeast-1.aliyuncs.com' => lang('新加坡'),
+            'oss-ap-southeast-2.aliyuncs.com' => lang('澳大利亚（悉尼）'),
+            'oss-ap-southeast-3.aliyuncs.com' => lang('马来西亚（吉隆坡）'),
+            'oss-ap-southeast-5.aliyuncs.com' => lang('印度尼西亚（雅加达）'),
+            'oss-ap-southeast-6.aliyuncs.com' => lang('菲律宾（马尼拉）'),
+            'oss-ap-southeast-7.aliyuncs.com' => lang('泰国（曼谷）'),
+            'oss-ap-south-1.aliyuncs.com'     => lang('印度（孟买）'),
+            'oss-eu-central-1.aliyuncs.com'   => lang('德国（法兰克福）'),
+            'oss-eu-west-1.aliyuncs.com'      => lang('英国（伦敦）'),
+            'oss-me-east-1.aliyuncs.com'      => lang('阿联酋（迪拜）'),
         ];
     }
 }

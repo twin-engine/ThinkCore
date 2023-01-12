@@ -1,7 +1,5 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\service;
@@ -49,12 +47,12 @@ class ExpressService extends Service
     protected function initialize(): ExpressService
     {
         // 获取当前请求 IP 地址
-        $clentip = real_ip();
+        $clentip = $this->app->request->ip();
         if (empty($clentip) || $clentip === '0.0.0.0') {
             $clentip = join('.', [rand(1, 254), rand(1, 254), rand(1, 254), rand(1, 254)]);
         }
         // 创建 CURL 请求模拟参数
-        $this->options['cookie_file'] = "{$this->app->getRootPath()}runtime/.cok";
+        $this->options['cookie_file'] = syspath('runtime/.cok');
         $this->options['headers'] = ['Host:express.baidu.com', "CLIENT-IP:{$clentip}", "X-FORWARDED-FOR:{$clentip}"];
         return $this;
     }
@@ -79,12 +77,12 @@ class ExpressService extends Service
                 $state = intval($result['data']['info']['state']);
                 $status = in_array($state, [0, 1, 5, 7, 8]) ? 2 : ($state === 3 ? 3 : 4);
                 foreach ($result['data']['info']['context'] as $vo) $list[] = ['time' => date('Y-m-d H:i:s', intval($vo['time'])), 'context' => $vo['desc']];
-                $result = ['message' => $message[$status] ?? $result['msg'], 'status' => $status, 'express' => $code, 'number' => $number, 'data' => $list];
+                $result = ['message' => lang($message[$status] ?? $result['msg']), 'status' => $status, 'express' => $code, 'number' => $number, 'data' => $list];
                 $this->app->cache->set($ckey, $result, 30);
                 return $result;
             }
         }
-        return ['message' => '暂无轨迹信息', 'status' => 1, 'express' => $code, 'number' => $number, 'data' => $list];
+        return ['message' => lang('暂无轨迹信息'), 'status' => 1, 'express' => $code, 'number' => $number, 'data' => $list];
     }
 
     /**
@@ -136,7 +134,7 @@ class ExpressService extends Service
             $content = HttpExtend::get("https://m.baidu.com/s?word=快递查询&ts={$ts}&t_kt=0&ie=utf-8&rsv_iqid=&rsv_t=&sa=&rsv_pq=&rsv_sug4=&tj=1&inputT={$input}&sugid=&ss=", [], $this->options);
             if (preg_match('#"(expSearchApi|checkExpUrl)":"(.*?)"#i', $content, $matches)) {
                 $this->app->cache->set('express_kuaidi_uri', $expressUri = $matches[2], 3600);
-                if (preg_match('#"text":"快递查询","option":.*?(\[.*?\]).*?#i', $content, $items)) {
+                if (preg_match('#"text":"快递查询","option":.*?(\[.*?]).*?#i', $content, $items)) {
                     $attr = json_decode($items[1], true);
                     $expressCom = array_combine(array_column($attr, 'value'), array_column($attr, 'text'));
                     $this->app->cache->set('express_kuaidi_com', $expressCom, 3600);

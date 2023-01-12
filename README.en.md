@@ -1,5 +1,0 @@
-# ThinkCore
-
-#### Description
-ThinkCore
-

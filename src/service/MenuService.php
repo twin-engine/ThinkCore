@@ -1,7 +1,5 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\service;
@@ -20,14 +18,15 @@ class MenuService extends Service
 
     /**
      * 获取可选菜单节点
+     * @param boolean $force 强制刷新
      * @return array
      * @throws \ReflectionException
      */
-    public function getList(): array
+    public static function getList(bool $force = false): array
     {
         static $nodes = [];
-        if (count($nodes) > 0) return $nodes;
-        foreach (NodeService::instance()->getMethods() as $node => $method) {
+        if (empty($force) && count($nodes) > 0) return $nodes; else $nodes = [];
+        foreach (NodeService::getMethods($force) as $node => $method) {
             if ($method['ismenu']) $nodes[] = ['node' => $node, 'title' => $method['title']];
         }
         return $nodes;
@@ -41,12 +40,11 @@ class MenuService extends Service
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function getTree(): array
+    public static function getTree(): array
     {
-        $query = SystemMenu::mk()->where(['status' => 1]);
-        $list = $query->order('sort desc,id asc')->select()->toArray();
-        if (function_exists('admin_menu_filter')) admin_menu_filter($list);
-        return $this->build(DataExtend::arr2tree($list));
+        $menus = SystemMenu::mk()->where(['status' => 1])->order('sort desc,id asc')->select()->toArray();
+        if (function_exists('admin_menu_filter')) admin_menu_filter($menus);
+        return static::filter(DataExtend::arr2tree($menus));
     }
 
     /**
@@ -55,29 +53,22 @@ class MenuService extends Service
      * @return array
      * @throws \ReflectionException
      */
-    private function build(array $menus): array
+    private static function filter(array $menus): array
     {
-        $service = AdminService::instance();
         foreach ($menus as $key => &$menu) {
             if (!empty($menu['sub'])) {
-                $menu['sub'] = $this->build($menu['sub']);
+                $menu['sub'] = static::filter($menu['sub']);
             }
             if (!empty($menu['sub'])) {
                 $menu['url'] = '#';
-            } elseif ($menu['url'] === '#') {
+            } elseif (empty($menu['url']) || $menu['url'] === '#' || !(empty($menu['node']) || AdminService::check($menu['node']))) {
                 unset($menus[$key]);
-            } elseif (preg_match('/^(https?:)?(\/\/|\\\\)/i', $menu['url'])) {
-                if (!!$menu['node'] && !$service->check($menu['node'])) {
-                    unset($menus[$key]);
-                } elseif ($menu['params']) {
-                    $menu['url'] .= (strpos($menu['url'], '?') === false ? '?' : '&') . $menu['params'];
-                }
-            } elseif (!!$menu['node'] && !$service->check($menu['node'])) {
-                unset($menus[$key]);
+            } elseif (preg_match('#^(https?:)?//\w+#i', $menu['url'])) {
+                if ($menu['params']) $menu['url'] .= (strpos($menu['url'], '?') === false ? '?' : '&') . $menu['params'];
             } else {
-                $node = join('/', array_slice(explode('/', $menu['url']), 0, 3));
-                $menu['url'] = url($menu['url'])->build() . ($menu['params'] ? '?' . $menu['params'] : '');
-                if (!$service->check($node)) unset($menus[$key]);
+                $node = join('/', array_slice(str2arr($menu['url'], '/'), 0, 3));
+                $menu['url'] = admuri($menu['url']) . ($menu['params'] ? '?' . $menu['params'] : '');
+                if (!AdminService::check($node)) unset($menus[$key]);
             }
         }
         return $menus;

@@ -9,6 +9,7 @@ use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\SMTP;
 use PHPMailer\PHPMailer\Exception;
 use think\admin\model\SysEmail;
+
 /**
  * 邮件服务
  * Class EmailService

@@ -1,12 +1,16 @@
 <?php
 
+declare (strict_types=1);
+
 use think\admin\extend\CodeExtend;
 use think\admin\extend\HttpExtend;
 use think\admin\Helper;
+use think\admin\helper\TokenHelper;
+use think\admin\Library;
 use think\admin\service\AdminService;
 use think\admin\service\QueueService;
+use think\admin\service\RuntimeService;
 use think\admin\service\SystemService;
-use think\admin\service\TokenService;
 use think\admin\Storage;
 use think\db\Query;
 use think\Model;
@@ -21,10 +25,10 @@ if (!function_exists('p')) {
      */
     function p($data, bool $new = false, ?string $file = null)
     {
-        return SystemService::instance()->putDebug($data, $new, $file);
+        return SystemService::putDebug($data, $new, $file);
     }
 }
-if (!function_exists('M')) {
+if (!function_exists('m')) {
     /**
      * 动态创建模型对象
      * @param string $name 模型名称
@@ -32,7 +36,7 @@ if (!function_exists('M')) {
      * @param string $conn 指定连接
      * @return Model
      */
-    function M(string $name, array $data = [], string $conn = ''): Model
+    function m(string $name, array $data = [], string $conn = ''): Model
     {
         return Helper::buildModel($name, $data, $conn);
     }
@@ -46,7 +50,22 @@ if (!function_exists('auth')) {
      */
     function auth(?string $node): bool
     {
-        return AdminService::instance()->check($node);
+        return AdminService::check($node);
+    }
+}
+
+if (!function_exists('admuri')) {
+    /**
+     * 生成后台 URL 地址
+     * @param string $url 路由地址
+     * @param array $vars PATH 变量
+     * @param boolean|string $suffix 后缀
+     * @param boolean|string $domain 域名
+     * @return string
+     */
+    function admuri(string $url = '', array $vars = [], $suffix = true, $domain = false): string
+    {
+        return sysuri('admin/index/index') . '#' . url($url, $vars, $suffix, $domain)->build();
     }
 }
 if (!function_exists('sysuri')) {
@@ -60,121 +79,41 @@ if (!function_exists('sysuri')) {
      */
     function sysuri(string $url = '', array $vars = [], $suffix = true, $domain = false): string
     {
-        return SystemService::instance()->sysuri($url, $vars, $suffix, $domain);
+        return SystemService::sysuri($url, $vars, $suffix, $domain);
     }
 }
-if (!function_exists('sysconf')) {
+
+if (!function_exists('encode')) {
     /**
-     * 获取或配置系统参数
-     * @param string $name 参数名称
-     * @param mixed $value 参数内容
-     * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * 加密 UTF8 字符串
+     * @param string $content
+     * @return string
+     * @deprecated
      */
-    function sysconf(string $name = '', $value = null)
+    function encode(string $content): string
     {
-        if (is_null($value) && is_string($name)) {
-            return SystemService::instance()->get($name);
-        } else {
-            return SystemService::instance()->set($name, $value);
+        [$chars, $length] = ['', strlen($string = iconv('UTF-8', 'GBK//TRANSLIT', $content))];
+        for ($i = 0; $i < $length; $i++) $chars .= str_pad(base_convert(strval(ord($string[$i])), 10, 36), 2, '0', 0);
+        return $chars;
+    }
+}
+if (!function_exists('decode')) {
+    /**
+     * 解密 UTF8 字符串
+     * @param string $content
+     * @return string
+     * @deprecated
+     */
+    function decode(string $content): string
+    {
+        $chars = '';
+        foreach (str_split($content, 2) as $char) {
+            $chars .= chr(intval(base_convert($char, 36, 10)));
         }
+        return iconv('GBK//TRANSLIT', 'UTF-8', $chars);
     }
 }
-if (!function_exists('syconfig')) {
-    /**
-     * 获取系统参数
-     * @param string $groupCode 常量的分类名称
-     * @param string $code 参数名称
-     * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    function syconfig(string $groupCode = '', string $code = '')
-    {
-        return SystemService::instance()->getConfig($groupCode, $code);
-    }
-}
-if (!function_exists('sysdata')) {
-    /**
-     * JSON 数据读取与存储
-     * @param string $name 数据名称
-     * @param mixed $value 数据内容
-     * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    function sysdata(string $name, $value = null)
-    {
-        if (is_null($value)) {
-            return SystemService::instance()->getData($name);
-        } else {
-            return SystemService::instance()->setData($name, $value);
-        }
-    }
-}
-if (!function_exists('sysqueue')) {
-    /**
-     * 注册异步处理任务
-     * @param string $title 任务名称
-     * @param string $command 执行内容
-     * @param integer $later 延时执行时间
-     * @param array $data 任务附加数据
-     * @param integer $rscript 任务类型(0单例,1多例)
-     * @param integer $loops 循环等待时间
-     * @return string
-     * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    function sysqueue(string $title, string $command, int $later = 0, array $data = [], int $rscript = 1, int $loops = 0): string
-    {
-        return QueueService::instance()->register($title, $command, $later, $data, $rscript, $loops)->code;
-    }
-}
-if (!function_exists('xss_safe')) {
-    /**
-     * 文本内容XSS过滤
-     * @param string $text
-     * @return string
-     */
-    function xss_safe(string $text): string
-    {
-        // 将所有 onxxx= 中的字母 o 替换为符号 ο，注意它不是字母
-        $rules = ['#<script.*?<\/script>#is' => '', '#(\s)on(\w+=\S)#i' => '$1οn$2'];
-        return preg_replace(array_keys($rules), array_values($rules), trim($text));
-    }
-}
-if (!function_exists('systoken')) {
-    /**
-     * 生成 CSRF-TOKEN 参数
-     * @param null|string $node
-     * @return string
-     */
-    function systoken(?string $node = null): string
-    {
-        $result = TokenService::instance()->buildFormToken($node);
-        return $result['token'] ?? '';
-    }
-}
-if (!function_exists('sysoplog')) {
-    /**
-     * 写入系统日志
-     * 新增指定操作用户名参数 2022/4/11 by rotoos
-     * @param string $username 操作用户名
-     * @param string $action 日志行为
-     * @param string $content 日志内容
-     * @return boolean
-     */
-    function sysoplog(string $username, string $action, string $content): bool
-    {
-        return SystemService::instance()->setOplog($username, $action, $content);
-    }
-}
+
 if (!function_exists('str2arr')) {
     /**
      * 字符串转数组
@@ -212,34 +151,137 @@ if (!function_exists('arr2str')) {
         return $separ . join($separ, $data) . $separ;
     }
 }
-if (!function_exists('encode')) {
+
+if (!function_exists('isDebug')) {
     /**
-     * 加密 UTF8 字符串
-     * @param string $content
-     * @return string
+     * 调试模式运行
+     * @return boolean
      */
-    function encode(string $content): string
+    function isDebug(): bool
     {
-        [$chars, $length] = ['', strlen($string = iconv('UTF-8', 'GBK//TRANSLIT', $content))];
-        for ($i = 0; $i < $length; $i++) $chars .= str_pad(base_convert(ord($string[$i]), 10, 36), 2, 0, 0);
-        return $chars;
+        return RuntimeService::isDebug();
     }
 }
-if (!function_exists('decode')) {
+if (!function_exists('isOnline')) {
     /**
-     * 解密 UTF8 字符串
-     * @param string $content
-     * @return string
+     * 产品模式运行
+     * @return boolean
      */
-    function decode(string $content): string
+    function isOnline(): bool
     {
-        $chars = '';
-        foreach (str_split($content, 2) as $char) {
-            $chars .= chr(intval(base_convert($char, 36, 10)));
+        return RuntimeService::isOnline();
+    }
+}
+if (!function_exists('sysconf')) {
+    /**
+     * 获取或配置系统参数
+     * @param string $name 参数名称
+     * @param mixed $value 参数内容
+     * @return mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    function sysconf(string $name = '', $value = null)
+    {
+        if (is_null($value) && is_string($name)) {
+            return SystemService::get($name);
+        } else {
+            return SystemService::set($name, $value);
         }
-        return iconv('GBK//TRANSLIT', 'UTF-8', $chars);
     }
 }
+if (!function_exists('syconfig')) {
+    /**
+     * 获取系统参数
+     * @param string $groupCode 常量的分类名称
+     * @param string $code 参数名称
+     * @return mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    function syconfig(string $groupCode = '', string $code = '')
+    {
+        return SystemService::getConfig($groupCode, $code);
+    }
+}
+if (!function_exists('sysdata')) {
+    /**
+     * JSON 数据读取与存储
+     * @param string $name 数据名称
+     * @param mixed $value 数据内容
+     * @return mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    function sysdata(string $name, $value = null)
+    {
+        if (is_null($value)) {
+            return SystemService::getData($name);
+        } else {
+            return SystemService::setData($name, $value);
+        }
+    }
+}
+if (!function_exists('syspath')) {
+    /**
+     * 获取文件绝对路径
+     * @param string $name 文件路径
+     * @param ?string $root 程序根路径
+     * @return string
+     */
+    function syspath(string $name = '', ?string $root = null): string
+    {
+        if (is_null($root)) $root = Library::$sapp->getRootPath();
+        $attr = ['/' => DIRECTORY_SEPARATOR, '\\' => DIRECTORY_SEPARATOR];
+        return rtrim($root, '\\/') . DIRECTORY_SEPARATOR . ltrim(strtr($name, $attr), '\\/');
+    }
+}
+if (!function_exists('sysoplog')) {
+    /**
+     * 写入系统日志
+     * @param string $action 日志行为
+     * @param string $content 日志内容
+     * @return boolean
+     */
+    function sysoplog(string $action, string $content): bool
+    {
+        return SystemService::setOplog($action, $content);
+    }
+}
+if (!function_exists('systoken')) {
+    /**
+     * 生成 CSRF-TOKEN 参数
+     * @return string
+     */
+    function systoken(): string
+    {
+        return TokenHelper::token();
+    }
+}
+if (!function_exists('sysqueue')) {
+    /**
+     * 注册异步处理任务
+     * @param string $title 任务名称
+     * @param string $command 执行内容
+     * @param integer $later 延时执行时间
+     * @param array $data 任务附加数据
+     * @param integer $rscript 任务类型(0单例,1多例)
+     * @param integer $loops 循环等待时间
+     * @return string
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    function sysqueue(string $title, string $command, int $later = 0, array $data = [], int $rscript = 1, int $loops = 0): string
+    {
+        return QueueService::register($title, $command, $later, $data, $rscript, $loops)->code;
+    }
+}
+
 if (!function_exists('enbase64url')) {
     /**
      * Base64安全URL编码
@@ -262,9 +304,23 @@ if (!function_exists('debase64url')) {
         return CodeExtend::deSafe64($string);
     }
 }
+
+if (!function_exists('xss_safe')) {
+    /**
+     * 文本内容XSS过滤
+     * @param string $text
+     * @return string
+     */
+    function xss_safe(string $text): string
+    {
+        // 将所有 onxxx= 中的字母 o 替换为符号 ο，注意它不是字母
+        $rules = ['#<script.*?<\/script>#is' => '', '#(\s)on(\w+=\S)#i' => '$1οn$2'];
+        return preg_replace(array_keys($rules), array_values($rules), trim($text));
+    }
+}
 if (!function_exists('http_get')) {
     /**
-     * 以get模拟网络请求
+     * 以 get 模拟网络请求
      * @param string $url HTTP请求URL地址
      * @param array|string $query GET请求参数
      * @param array $options CURL参数
@@ -277,7 +333,7 @@ if (!function_exists('http_get')) {
 }
 if (!function_exists('http_post')) {
     /**
-     * 以post模拟网络请求
+     * 以 post 模拟网络请求
      * @param string $url HTTP请求URL地址
      * @param array|string $data POST请求数据
      * @param array $options CURL参数
@@ -302,7 +358,7 @@ if (!function_exists('data_save')) {
      */
     function data_save($dbQuery, array $data, string $key = 'id', $where = [])
     {
-        return SystemService::instance()->save($dbQuery, $data, $key, $where);
+        return SystemService::save($dbQuery, $data, $key, $where);
     }
 }
 if (!function_exists('down_file')) {
@@ -316,6 +372,29 @@ if (!function_exists('down_file')) {
     function down_file(string $source, bool $force = false, int $expire = 0): string
     {
         return Storage::down($source, $force, $expire)['url'] ?? $source;
+    }
+}
+
+if (!function_exists('trace_file')) {
+    /**
+     * 输出异常数据到文件
+     * @param \Exception $exception
+     * @return boolean
+     */
+    function trace_file(Exception $exception): bool
+    {
+        $path = Library::$sapp->getRuntimePath() . 'trace';
+        if (!file_exists($path)) mkdir($path, 0755, true);
+        $name = substr($exception->getFile(), strlen(syspath()));
+        $file = $path . DIRECTORY_SEPARATOR . date('Ymd_His_') . strtr($name, ['/' => '.', '\\' => '.']);
+        $class = get_class($exception);
+        return false !== file_put_contents($file,
+                "[CODE] {$exception->getCode()}" . PHP_EOL .
+                "[INFO] {$exception->getMessage()}" . PHP_EOL .
+                "[FILE] {$class} in {$name} line {$exception->getLine()}" . PHP_EOL .
+                "[TIME] " . date('Y-m-d H:i:s') . PHP_EOL . PHP_EOL .
+                '[TRACE]' . PHP_EOL . $exception->getTraceAsString()
+            );
     }
 }
 if (!function_exists('format_bytes')) {
@@ -344,34 +423,14 @@ if (!function_exists('format_datetime')) {
      */
     function format_datetime($datetime, string $format = 'Y年m月d日 H:i:s'): string
     {
-        if (empty($datetime)) return '-';
-        if (is_numeric($datetime)) {
-            return date($format, $datetime);
+
+        if (empty($datetime)) {
+            return '-';
+        } elseif (is_numeric($datetime)) {
+            return date(lang($format), intval($datetime));
         } else {
-            return date($format, strtotime($datetime));
+            return date(lang($format), strtotime($datetime));
         }
-    }
-}
-if (!function_exists('trace_file')) {
-    /**
-     * 输出异常数据到文件
-     * @param \Exception $exception
-     * @return void
-     */
-    function trace_file(Exception $exception)
-    {
-        $path = app()->getRuntimePath() . 'trace';
-        if (!file_exists($path)) mkdir($path, 0755, true);
-        $name = substr($exception->getFile(), strlen(app()->getRootPath()));
-        $file = $path . DIRECTORY_SEPARATOR . date('Ymd_His_') . strtr($name, ['/' => '.', '\\' => '.']);
-        $class = get_class($exception);
-        file_put_contents($file,
-            "[CODE] {$exception->getCode()}" . PHP_EOL .
-            "[INFO] {$exception->getMessage()}" . PHP_EOL .
-            "[FILE] {$class} in {$name} line {$exception->getLine()}" . PHP_EOL .
-            "[TIME] " . date('Y-m-d H:i:s') . PHP_EOL . PHP_EOL .
-            '[TRACE]' . PHP_EOL . $exception->getTraceAsString()
-        );
     }
 }
 if(!function_exists('desensitize')){
@@ -383,12 +442,10 @@ if(!function_exists('desensitize')){
      * @param string $re 替换字符
      * @return string
      */
-    function desensitize($string, $start = 0, $end = 0, $re = '*'){
+    function desensitize($string = '', $start = 0, $end = 0, $re = '*'){
         if(empty($string) || empty($end) || empty($re)) return $string;
-
         $strLen = strlen($string);
         if($strLen < ($start + $end)) return $string;
-
         $strEnd = $strLen-$end;
         for($i=0; $i<$strLen; $i++) {
             if($i>=$start && $i<$strEnd)
@@ -406,8 +463,7 @@ if(!function_exists('real_ip')){
      * @access  public
      * @return  string
      */
-    function real_ip()
-    {
+    function real_ip(){
         static $realip = NULL;
         if ($realip !== NULL){
             return $realip;
@@ -447,10 +503,12 @@ if(!function_exists('real_ip')){
     }
 }
 if (!function_exists('http_post_data')) {
-    /*
-    *蚂蚁区块链
-    *
-    */
+    /**
+     * 蚂蚁区块链 post 模拟网络请求
+     * @param $url
+     * @param $data_string
+     * @return array
+     */
     function http_post_data($url, $data_string) {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -470,12 +528,11 @@ if (!function_exists('http_post_data')) {
     }
     
 }
-
 if (!function_exists('getUnixTimestamp')) {
-    /*
-    *13位时间戳
-    *
-    */
+    /**
+     * 13位时间戳转换
+     * @return float
+     */
     function getUnixTimestamp ()
     {
         list($s1, $s2) = explode(' ', microtime());
@@ -484,6 +541,12 @@ if (!function_exists('getUnixTimestamp')) {
 }
 
 if (!function_exists('curls')) {
+    /**
+     * curl请求
+     * @param $url
+     * @param $timeout
+     * @return bool|string
+     */
     function curls($url, $timeout = '15')
     {
         // 1. 初始化
@@ -504,6 +567,8 @@ if (!function_exists('curls')) {
 if (!function_exists('TimeToSeconds')) {
     /**
      * 时间转换
+     * @param $end_time
+     * @return int|string
      */
     function TimeToSeconds($end_time)
     {
@@ -523,7 +588,7 @@ if (!function_exists('TimeToSeconds')) {
                 $time = explode(' ' , gmstrftime('%j %H %M %S' , $seconds));//Array ( [0] => 04 [1] => 14 [2] => 14 [3] => 35 )
                 $format_time = ( $time[0] - 1 ) . '天' . $time[1] . '时' . $time[2] . '分' . $time[3] . '秒';
             }
-            return ltrim($format_time,0);
+            return ltrim($format_time,'0');
         }else{
             return 0;
         }
@@ -533,6 +598,7 @@ if(!function_exists('get_http_type'))
 {
     /**
      * 获取当前网址协议
+     * @return string
      */
     function get_http_type()
     {

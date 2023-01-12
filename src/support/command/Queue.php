@@ -1,9 +1,8 @@
 <?php
 
-
 declare (strict_types=1);
 
-namespace think\admin\command;
+namespace think\admin\support\command;
 
 use Error;
 use Exception;
@@ -11,28 +10,52 @@ use Psr\Log\NullLogger;
 use think\admin\Command;
 use think\admin\model\SystemQueue;
 use think\admin\service\QueueService;
-use think\Collection;
 use think\console\Input;
 use think\console\input\Argument;
 use think\console\input\Option;
 use think\console\Output;
-use think\Model;
 use Throwable;
 
 /**
  * 异步任务管理指令
  * Class Queue
- * @package think\admin\command
+ * @package think\admin\support\command
  */
 class Queue extends Command
 {
+
     /**
-     * 任务进程
+     * 任务等待处理
+     * @var integer
+     */
+    const STATE_WAIT = 1;
+
+    /**
+     * 任务正在处理
+     * @var integer
+     */
+    const STATE_LOCK = 2;
+
+    /**
+     * 任务处理完成
+     * @var integer
+     */
+    const STATE_DONE = 3;
+
+    /**
+     * 任务处理失败
+     * @var integer
+     */
+    const STATE_ERROR = 4;
+
+    /**
+     * 监听进程指令
+     * @var string
      */
     const QUEUE_LISTEN = 'xadmin:queue listen';
 
     /**
-     * 任务编号
+     * 当前任务编号
      * @var string
      */
     protected $code;
@@ -70,7 +93,7 @@ class Queue extends Command
      */
     protected function webStopAction()
     {
-        $root = $this->app->getRootPath() . 'public' . DIRECTORY_SEPARATOR;
+        $root = syspath('public' . DIRECTORY_SEPARATOR);
         if (count($result = $this->process->query("{$root} {$root}router.php")) < 1) {
             $this->output->writeln("># There are no WebServer processes to stop");
         } else foreach ($result as $item) {
@@ -86,7 +109,7 @@ class Queue extends Command
     {
         $port = $this->input->getOption('port') ?: '80';
         $host = $this->input->getOption('host') ?: '127.0.0.1';
-        $root = $this->app->getRootPath() . 'public' . DIRECTORY_SEPARATOR;
+        $root = syspath('public' . DIRECTORY_SEPARATOR);
         $command = "php -S {$host}:{$port} -t {$root} {$root}router.php";
         $this->output->comment(">$ {$command}");
         if (count($result = $this->process->query($command)) > 0) {
@@ -108,7 +131,7 @@ class Queue extends Command
      */
     protected function webStatusAction()
     {
-        $root = $this->app->getRootPath() . 'public' . DIRECTORY_SEPARATOR;
+        $root = syspath('public' . DIRECTORY_SEPARATOR);
         if (count($result = $this->process->query("{$root} {$root}router.php")) > 0) {
             $this->output->comment(">$ {$result[0]['cmd']}");
             $this->output->writeln("># WebServer process {$result[0]['pid']} running");
@@ -119,9 +142,6 @@ class Queue extends Command
 
     /**
      * 停止所有任务
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function stopAction()
     {
@@ -157,9 +177,6 @@ class Queue extends Command
 
     /**
      * 查询所有任务
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function queryAction()
     {
@@ -174,37 +191,33 @@ class Queue extends Command
     /**
      * 清理所有任务
      * @throws \think\admin\Exception
+     * @throws \think\db\exception\DbException
      */
     protected function cleanAction()
     {
-        // 清理 7 天前的历史任务记录
-        $map = [['exec_time', '<', time() - 7 * 24 * 3600]];
-        $clean = SystemQueue::mk()->where($map)->delete();
+        // 清理任务历史记录
+        $days = intval(sysconf('base.queue_clean_days') ?: 7);
+        $clean = SystemQueue::mk()->where('exec_time', '<', time() - $days * 24 * 3600)->delete();
         // 标记超过 1 小时未完成的任务为失败状态，循环任务失败重置
-        $map1 = [['loops_time', '>', 0], ['status', '=', 4]]; // 执行失败的循环任务
-        $map2 = [['exec_time', '<', time() - 3600], ['status', '=', 2]]; // 执行超时的任务
+        $map1 = [['loops_time', '>', 0], ['status', '=', static::STATE_ERROR]]; // 执行失败的循环任务
+        $map2 = [['exec_time', '<', time() - 3600], ['status', '=', static::STATE_LOCK]]; // 执行超时的任务
         [$timeout, $loops, $total] = [0, 0, SystemQueue::mk()->whereOr([$map1, $map2])->count()];
-        SystemQueue::mk()->whereOr([$map1, $map2])->chunk(100, function (Collection $items) use ($total, &$loops, &$timeout) {
-            $items->map(function (Model $item) use ($total, &$loops, &$timeout) {
-                $item['loops_time'] > 0 ? $loops++ : $timeout++;
-                if ($item['loops_time'] > 0) {
-                    $this->queue->message($total, $timeout + $loops, "正在重置任务 {$item['code']} 为运行");
-                    [$status, $message] = [1, intval($item['status']) === 4 ? '任务执行失败，已自动重置任务！' : '任务执行超时，已自动重置任务！'];
-                } else {
-                    $this->queue->message($total, $timeout + $loops, "正在标记任务 {$item['code']} 为超时");
-                    [$status, $message] = [4, '任务执行超时，已自动标识为失败！'];
-                }
-                SystemQueue::mk()->where(['id' => $item['id']])->update(['status' => $status, 'exec_desc' => $message]);
-            });
-        });
+        foreach (SystemQueue::mk()->whereOr([$map1, $map2])->cursor() as $queue) {
+            $queue['loops_time'] > 0 ? $loops++ : $timeout++;
+            if ($queue['loops_time'] > 0) {
+                $this->queue->message($total, $timeout + $loops, "正在重置任务 {$queue['code']} 为运行");
+                [$status, $message] = [static::STATE_WAIT, $queue['status'] === static::STATE_ERROR ? '任务执行失败，已自动重置任务！' : '任务执行超时，已自动重置任务！'];
+            } else {
+                $this->queue->message($total, $timeout + $loops, "正在标记任务 {$queue['code']} 为超时");
+                [$status, $message] = [static::STATE_ERROR, '任务执行超时，已自动标识为失败！'];
+            }
+            $queue->save(['status' => $status, 'exec_desc' => $message]);
+        }
         $this->setQueueSuccess("清理 {$clean} 条历史任务，关闭 {$timeout} 条超时任务，重置 {$loops} 条循环任务");
     }
 
     /**
      * 查询兼听状态
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function statusAction()
     {
@@ -216,56 +229,70 @@ class Queue extends Command
     }
 
     /**
-     * 立即监听任务
+     * 启动任务监听
+     * @return void
      */
     protected function listenAction()
     {
-        set_time_limit(0);
-        ignore_user_abort(true);
-        $this->app->db->setLog(new NullLogger());
-        $this->output->writeln("\tYou can exit with <info>`CTRL-C`</info>");
+        try {
+            set_time_limit(0) && PHP_SAPI !== 'cli' && ignore_user_abort(true);
+            $this->app->db->setLog(new NullLogger());
+            $this->createListenProcess();
+        } catch (Exception $exception) {
+            trace_file($exception) && usleep(3000000);
+            $this->output->write('=============== EXCEPTION ===============');
+            $this->output->write($exception->getMessage());
+            $this->output->writeln('=============== TRY-REBOOT ===============');
+            $this->createListenProcess();
+        }
+    }
+
+    /**
+     * 执行任务监听
+     * @return void
+     */
+    private function createListenProcess()
+    {
+        $this->output->writeln("\n\tYou can exit with <info>`CTRL-C`</info>");
         $this->output->writeln('=============== LISTENING ===============');
         while (true) {
-            [$map, $start] = [[['status', '=', 1], ['exec_time', '<=', time()]], microtime(true)];
-            foreach (SystemQueue::mk()->where($map)->order('exec_time asc')->cursor() as $vo) try {
-                $args = "xadmin:queue dorun {$vo['code']} -";
+            [$map, $start] = [[['status', '=', static::STATE_WAIT], ['exec_time', '<=', time()]], microtime(true)];
+            foreach (SystemQueue::mk()->where($map)->order('exec_time asc')->cursor() as $queue) try {
+                $args = "xadmin:queue dorun {$queue['code']} -";
                 $this->output->comment(">$ {$this->process->think($args)}");
                 if (count($this->process->thinkQuery($args)) > 0) {
-                    $this->output->writeln("># Already in progress -> [{$vo['code']}] {$vo['title']}");
+                    $this->output->writeln("># Already in progress -> [{$queue['code']}] {$queue['title']}");
                 } else {
                     $this->process->thinkCreate($args);
-                    $this->output->writeln("># Created new process -> [{$vo['code']}] {$vo['title']}");
+                    $this->output->writeln("># Created new process -> [{$queue['code']}] {$queue['title']}");
                 }
             } catch (Exception $exception) {
-                SystemQueue::mk()->where(['code' => $vo['code']])->update([
-                    'status' => 4, 'outer_time' => time(), 'exec_desc' => $exception->getMessage(),
-                ]);
-                $this->output->error("># Execution failed -> [{$vo['code']}] {$vo['title']}，{$exception->getMessage()}");
+                $queue->save(['status' => static::STATE_ERROR, 'outer_time' => time(), 'exec_desc' => $exception->getMessage()]);
+                $this->output->error("># Execution failed -> [{$queue['code']}] {$queue['title']}，{$exception->getMessage()}");
             }
             if (microtime(true) < $start + 1) usleep(1000000);
         }
     }
 
     /**
-     * 执行指定的任务内容
+     * 执行指定任务
+     * @return void
      */
     protected function doRunAction()
     {
-        set_time_limit(0);
-        ignore_user_abort(true);
         $this->code = trim($this->input->getArgument('code'));
         if (empty($this->code)) {
             $this->output->error('Task number needs to be specified for task execution');
         } else try {
+            set_time_limit(0) && PHP_SAPI !== 'cli' && ignore_user_abort(true);
             $this->queue->initialize($this->code);
-            if (empty($this->queue->record) || intval($this->queue->record['status']) !== 1) {
+            if (empty($this->queue->record) || intval($this->queue->record['status']) !== static::STATE_WAIT) {
                 // 这里不做任何处理（该任务可能在其它地方已经在执行）
                 $this->output->warning("The or status of task {$this->code} is abnormal");
             } else {
                 // 锁定任务状态，防止任务再次被执行
-                SystemQueue::mk()->strict(false)->where(['code' => $this->code])->update([
-                    'enter_time' => microtime(true), 'attempts' => $this->app->db->raw('attempts+1'),
-                    'outer_time' => 0, 'exec_pid' => getmypid(), 'exec_desc' => '', 'status' => 2,
+                SystemQueue::mk()->strict(false)->where(['code' => $this->code])->inc('attempts')->update([
+                    'enter_time' => microtime(true), 'outer_time' => 0, 'exec_pid' => getmypid(), 'exec_desc' => '', 'status' => static::STATE_LOCK,
                 ]);
                 $this->queue->progress(2, '>>> 任务处理开始 <<<', '0');
                 // 执行任务内容
@@ -275,22 +302,22 @@ class Queue extends Command
                     // 自定义任务，支持返回消息（支持异常结束，异常码可选择 3|4 设置任务状态）
                     $class = $this->app->make($command, [], true);
                     if ($class instanceof \think\admin\Queue) {
-                        $this->updateQueue(3, $class->initialize($this->queue)->execute($this->queue->data) ?: '');
+                        $this->updateQueue(static::STATE_DONE, $class->initialize($this->queue)->execute($this->queue->data) ?: '');
                     } elseif ($class instanceof QueueService) {
-                        $this->updateQueue(3, $class->initialize($this->queue->code)->execute($this->queue->data) ?: '');
+                        $this->updateQueue(static::STATE_DONE, $class->initialize($this->queue->code)->execute($this->queue->data) ?: '');
                     } else {
-                        throw new \think\admin\Exception("自定义 {$command} 未继承 Queue 或 QueueService");
+                        throw new \think\admin\Exception("自定义 {$command} 未继承 think\admin\Queue 或 think\admin\service\QueueService");
                     }
                 } else {
                     // 自定义指令，不支持返回消息（支持异常结束，异常码可选择 3|4 设置任务状态）
                     $attr = explode(' ', trim(preg_replace('|\s+|', ' ', $this->queue->record['command'])));
-                    $this->updateQueue(3, $this->app->console->call(array_shift($attr), $attr)->fetch(), false);
+                    $this->updateQueue(static::STATE_DONE, $this->app->console->call(array_shift($attr), $attr)->fetch(), false);
                 }
             }
         } catch (Exception|Throwable|Error $exception) {
-            $code = $exception->getCode();
-            if (intval($code) !== 3) $code = 4;
-            $this->updateQueue($code, $exception->getMessage());
+            trace_file($exception);
+            $isDone = intval($exception->getCode()) === static::STATE_DONE;
+            $this->updateQueue($isDone ? static::STATE_DONE : static::STATE_ERROR, $exception->getMessage());
         }
     }
 
@@ -307,23 +334,22 @@ class Queue extends Command
         SystemQueue::mk()->strict(false)->where(['code' => $this->code])->update([
             'status' => $status, 'outer_time' => microtime(true), 'exec_pid' => getmypid(), 'exec_desc' => $desc[0],
         ]);
-        $this->output->writeln($message);
+        $this->process->message($message);
         // 任务进度标记
         if (!empty($desc[0])) {
             $this->queue->progress($status, ">>> {$desc[0]} <<<");
         }
-        if ($status == 3) {
+        // 任务状态标记
+        if ($status === static::STATE_DONE) {
             $this->queue->progress($status, '>>> 任务处理完成 <<<', '100.00');
-        } elseif ($status == 4) {
+        } elseif ($status === static::STATE_ERROR) {
             $this->queue->progress($status, '>>> 任务处理失败 <<<');
         }
         // 注册循环任务
-        if (isset($this->queue->record['loops_time']) && $this->queue->record['loops_time'] > 0) {
-            try {
-                $this->queue->initialize($this->code)->reset($this->queue->record['loops_time']);
-            } catch (Exception|Throwable|Error  $exception) {
-                $this->app->log->error("Queue {$this->queue->record['code']} Loops Failed. {$exception->getMessage()}");
-            }
+        if ($this->queue->record['loops_time'] > 0) try {
+            $this->queue->initialize($this->code)->reset(intval($this->queue->record['loops_time']));
+        } catch (Exception|Throwable|Error $exception) {
+            $this->app->log->error("Queue {$this->queue->record['code']} Loops Failed. {$exception->getMessage()}");
         }
     }
 }

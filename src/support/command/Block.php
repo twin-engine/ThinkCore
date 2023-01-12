@@ -2,7 +2,7 @@
 
 declare (strict_types=1);
 
-namespace think\admin\command;
+namespace think\admin\support\command;
 
 use think\admin\service\BlockService;
 use think\admin\Command;
@@ -77,11 +77,11 @@ class Block extends Command
 
     /**
      * 同步gas列表
-     * @param string $next
-     * @param integer $done
+     * @param int $done
      * @return string
-     * @throws \WeChat\Exceptions\InvalidResponseException
-     * @throws \WeChat\Exceptions\LocalCacheException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     public function _gas(int $done = 0): string
     {

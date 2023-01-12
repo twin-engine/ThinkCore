@@ -1,12 +1,10 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\service;
 
-use think\admin\Library;
+use think\admin\extend\CodeExtend;
 use think\admin\Service;
 
 /**
@@ -19,69 +17,62 @@ class ProcessService extends Service
 
     /**
      * 获取 Think 指令内容
-     * @param string $args 指定参数
+     * @param string $arguments 指令参数
      * @param boolean $simple 指令内容
      * @return string
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
-    public function think(string $args = '', bool $simple = false): string
+    public static function think(string $arguments = '', bool $simple = false): string
     {
-        $command = trim("{$this->app->getRootPath()}think {$args}");
-        if ($simple) return $command;
-        $binary = sysconf('base.binary') ?: PHP_BINARY;
-        if (in_array(basename($binary), ['php', 'php.exe'])) {
-            return "{$binary} {$command}";
-        } else {
+        $command = syspath("think {$arguments}");
+        try {
+            if ($simple) return $command;
+            if (!($binary = sysconf('base.binary')) || empty($binary)) {
+                $attrs = pathinfo(str_replace('/sbin/php-fpm', '/bin/php', PHP_BINARY));
+                $attrs['dirname'] = $attrs['dirname'] . DIRECTORY_SEPARATOR;
+                $attrs['filename'] = preg_replace('#-(cgi|fpm)$#', '', $attrs['filename']);
+                $attrs['extension'] = empty($attrs['extension']) ? '' : ".{$attrs['extension']}";
+                $binary = $attrs['dirname'] . $attrs['filename'] . $attrs['extension'];
+            }
+            return (static::isfile($binary) ? $binary : 'php') . " {$command}";
+        } catch (\Exception $exception) {
+            trace_file($exception);
             return "php {$command}";
         }
     }
 
     /**
      * 检查 Think 运行进程
-     * @param string $args
+     * @param string $args 执行参数
      * @return array
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
-    public function thinkQuery(string $args): array
+    public static function thinkQuery(string $args): array
     {
-        return $this->query($this->think($args, true));
+        return static::query(static::think($args, true));
     }
 
     /**
      * 执行 Think 指令内容
      * @param string $args 执行参数
      * @param integer $usleep 延时时间
-     * @return ProcessService
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
-    public function thinkCreate(string $args, int $usleep = 0): ProcessService
+    public static function thinkCreate(string $args, int $usleep = 0)
     {
-        return $this->create($this->think($args), $usleep);
+        static::create(static::think($args), $usleep);
     }
 
     /**
      * 创建异步进程
      * @param string $command 任务指令
-     * @param integer $usleep 延时时间
-     * @return $this
+     * @param integer $usleep 延时毫米
      */
-    public function create(string $command, int $usleep = 0): ProcessService
+    public static function create(string $command, int $usleep = 0)
     {
-        if ($this->iswin()) {
-            $this->exec(__DIR__ . "/bin/console.exe {$command}");
+        if (static::iswin()) {
+            static::exec(__DIR__ . "/bin/console.exe {$command}");
         } else {
-            $this->exec("{$command} > /dev/null 2>&1 &");
+            static::exec("{$command} > /dev/null 2>&1 &");
         }
-        if ($usleep > 0) {
-            usleep($usleep);
-        }
-        return $this;
+        $usleep > 0 && usleep($usleep);
     }
 
     /**
@@ -90,19 +81,19 @@ class ProcessService extends Service
      * @param string $name 进程名称
      * @return array
      */
-    public function query(string $cmd, string $name = 'php.exe'): array
+    public static function query(string $cmd, string $name = 'php.exe'): array
     {
         $list = [];
-        if ($this->iswin()) {
-            $lines = $this->exec('wmic process where name="' . $name . '" get processid,CommandLine', true);
-            foreach ($lines as $line) if ($this->_issub($line, $cmd) !== false) {
-                $attr = explode(' ', $this->_space($line));
+        if (static::iswin()) {
+            $lines = static::exec('wmic process where name="' . $name . '" get processid,CommandLine', true);
+            foreach ($lines as $line) if (static::_issub($line, $cmd) !== false) {
+                $attr = explode(' ', static::_trim($line));
                 $list[] = ['pid' => array_pop($attr), 'cmd' => join(' ', $attr)];
             }
         } else {
-            $lines = $this->exec("ps ax|grep -v grep|grep \"{$cmd}\"", true);
-            foreach ($lines as $line) if ($this->_issub($line, $cmd) !== false) {
-                $attr = explode(' ', $this->_space($line));
+            $lines = static::exec("ps ax|grep -v grep|grep \"{$cmd}\"", true);
+            foreach ($lines as $line) if (static::_issub($line, $cmd) !== false) {
+                $attr = explode(' ', static::_trim($line));
                 [$pid] = [array_shift($attr), array_shift($attr), array_shift($attr), array_shift($attr)];
                 $list[] = ['pid' => $pid, 'cmd' => join(' ', $attr)];
             }
@@ -115,12 +106,12 @@ class ProcessService extends Service
      * @param integer $pid 进程号
      * @return boolean
      */
-    public function close(int $pid): bool
+    public static function close(int $pid): bool
     {
-        if ($this->iswin()) {
-            $this->exec("wmic process {$pid} call terminate");
+        if (static::iswin()) {
+            static::exec("wmic process {$pid} call terminate");
         } else {
-            $this->exec("kill -9 {$pid}");
+            static::exec("kill -9 {$pid}");
         }
         return true;
     }
@@ -131,28 +122,55 @@ class ProcessService extends Service
      * @param boolean|array $outarr 返回类型
      * @return string|array
      */
-    public function exec(string $command, $outarr = false)
+    public static function exec(string $command, $outarr = false)
     {
         exec($command, $output);
-        return $outarr ? $output : join("\n", $output);
+        return $outarr ? $output : CodeExtend::text2utf8(join("\n", $output));
+    }
+
+    /**
+     * 执行外部程序
+     * @param string $command 执行指令
+     * @return false|string
+     */
+    public static function system(string $command, &$output = null)
+    {
+        return system($command, $output);
     }
 
     /**
      * 判断系统类型
      * @return boolean
      */
-    public function iswin(): bool
+    public static function iswin(): bool
     {
         return PATH_SEPARATOR === ';';
     }
 
     /**
-     * 读取组件版本号
-     * @return string
+     * 检查文件是否存在
+     * @param string $file 待检查的文件
+     * @return boolean
      */
-    public function version(): string
+    public static function isfile(string $file): bool
     {
-        return Library::VERSION;
+        if (static::iswin()) {
+            return static::exec("if exist \"{$file}\" echo 1") === '1';
+        } else {
+            return static::exec("if [ -f \"{$file}\" ];then echo 1;fi") === '1';
+        }
+    }
+
+    /**
+     * 输出文档消息
+     * @param string $message 输出内容
+     * @param integer $backline 回退行数
+     * @return void
+     */
+    public static function message(string $message, int $backline = 0)
+    {
+        while ($backline-- > 0) $message = "\033[1A\r\033[K{$message}";
+        print_r($message . PHP_EOL);
     }
 
     /**
@@ -160,7 +178,7 @@ class ProcessService extends Service
      * @param string $content
      * @return string
      */
-    private function _space(string $content): string
+    private static function _trim(string $content): string
     {
         return preg_replace('|\s+|', ' ', strtr(trim($content), '\\', '/'));
     }
@@ -168,11 +186,11 @@ class ProcessService extends Service
     /**
      * 判断是否包含字符串
      * @param string $content
-     * @param string $substr
+     * @param string $searcher
      * @return boolean
      */
-    private function _issub(string $content, string $substr): bool
+    private static function _issub(string $content, string $searcher): bool
     {
-        return stripos($this->_space($content), $this->_space($substr)) !== false;
+        return stripos(static::_trim($content), static::_trim($searcher)) !== false;
     }
 }

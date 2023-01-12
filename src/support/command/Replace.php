@@ -1,9 +1,8 @@
 <?php
 
-
 declare (strict_types=1);
 
-namespace think\admin\command;
+namespace think\admin\support\command;
 
 use think\admin\Command;
 use think\admin\service\SystemService;
@@ -15,7 +14,7 @@ use think\helper\Str;
 /**
  * 数据库字符替换
  * Class Replace
- * @package think\admin\command
+ * @package think\admin\support\command
  */
 class Replace extends Command
 {
@@ -32,10 +31,11 @@ class Replace extends Command
 
     /**
      * 任务执行入口
-     * @param Input $input
-     * @param Output $output
+     * @param \think\console\Input $input
+     * @param \think\console\Output $output
      * @return void
-     * @throws \Exception
+     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DbException
      */
     protected function execute(Input $input, Output $output)
     {
@@ -43,7 +43,7 @@ class Replace extends Command
         $repalce = $input->getArgument('replace');
         if ($search === '') $this->setQueueError('查找替换字符内容不能为空！');
         if ($repalce === '') $this->setQueueError('目标替换字符内容不能为空！');
-        [$tables, $total, $count] = SystemService::instance()->getTables();
+        [$tables, $total, $count] = SystemService::getTables();
         foreach ($tables as $table) {
             $data = [];
             $this->setQueueMessage($total, ++$count, sprintf("准备替换数据表 %s", Str::studly($table)));
@@ -53,7 +53,7 @@ class Replace extends Command
                 }
             }
             if (count($data) > 0) {
-                if ($this->app->db->table($table)->master(true)->where('1=1')->update($data) !== false) {
+                if ($this->app->db->table($table)->master()->where('1=1')->update($data) !== false) {
                     $this->setQueueMessage($total, $count, sprintf("成功替换数据表 %s", Str::studly($table)), 1);
                 } else {
                     $this->setQueueMessage($total, $count, sprintf("失败替换数据表 %s", Str::studly($table)), 1);

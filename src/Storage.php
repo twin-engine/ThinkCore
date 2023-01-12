@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin;
@@ -13,14 +12,14 @@ use think\Container;
  * 文件存储引擎管理
  * Class Storage
  * @package think\admin
- * @method array info($name, $safe = false, $attname = null) static 文件存储信息
- * @method array set($name, $file, $safe = false, $attname = null) static 储存文件
- * @method string url($name, $safe = false, $attname = null) static 获取文件链接
- * @method string get($name, $safe = false) static 读取文件内容
- * @method string path($name, $safe = false) static 文件存储路径
- * @method boolean del($name, $safe = false) static 删除存储文件
- * @method boolean has($name, $safe = false) static 检查是否存在
- * @method string upload() static 获取上传地址
+ * @method static array info($name, $safe = false, $attname = null) 文件存储信息
+ * @method static array set($name, $file, $safe = false, $attname = null) 储存文件
+ * @method static string url($name, $safe = false, $attname = null) 获取文件链接
+ * @method static string get($name, $safe = false) 读取文件内容
+ * @method static string path($name, $safe = false) 文件存储路径
+ * @method static boolean del($name, $safe = false) 删除存储文件
+ * @method static boolean has($name, $safe = false) 检查是否存在
+ * @method static string upload() 获取上传地址
  */
 abstract class Storage
 {
@@ -46,7 +45,7 @@ abstract class Storage
      * 链接前缀
      * @var string
      */
-    protected $prefix;
+    protected $domain;
 
     /**
      * Storage constructor.
@@ -79,29 +78,37 @@ abstract class Storage
      */
     public static function __callStatic(string $method, array $arguments)
     {
-        if (method_exists($class = static::instance(), $method)) {
-            return call_user_func_array([$class, $method], $arguments);
+        if (method_exists($storage = static::instance(), $method)) {
+            return call_user_func_array([$storage, $method], $arguments);
         } else {
-            throw new Exception("method not exists: " . get_class($class) . "->{$method}()");
+            throw new Exception("method not exists: " . get_class($storage) . "->{$method}()");
         }
     }
 
     /**
-     * 设置文件驱动名称
+     * 实例化存储操作对象
      * @param null|string $name 驱动名称
-     * @return static
+     * @param null|string $class 驱动类名
+     * @return mixed|object|string|static
      * @throws \think\admin\Exception
      * @throws \think\db\exception\DataNotFoundException
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public static function instance(?string $name = null)
+    public static function instance(?string $name = null, ?string $class = null)
     {
-        $class = ucfirst(strtolower($name ?: sysconf('storage.type')));
-        if (class_exists($object = "think\\admin\\storage\\{$class}Storage")) {
-            return Container::getInstance()->make($object);
+        if (is_null($class)) {
+            if (is_null($name) && static::class !== self::class) {
+                $class = static::class;
+            } else {
+                $type = ucfirst(strtolower($name ?: sysconf('storage.type')));
+                $class = "think\\admin\\storage\\{$type}Storage";
+            }
+        }
+        if (class_exists($class)) {
+            return Container::getInstance()->make($class);
         } else {
-            throw new Exception("File driver [{$class}] does not exist.");
+            throw new Exception("Storage driver [{$class}] does not exist.");
         }
     }
 
@@ -144,7 +151,7 @@ abstract class Storage
     }
 
     /**
-     * 根据文件后缀获取文件MINE
+     * 获取后缀类型
      * @param array|string $exts 文件后缀
      * @param array $mime 文件信息
      * @return string
@@ -159,7 +166,7 @@ abstract class Storage
     }
 
     /**
-     * 获取所有文件的信息
+     * 获取所有类型
      * @return array
      */
     public static function mimes(): array
@@ -167,6 +174,21 @@ abstract class Storage
         static $mimes = [];
         if (count($mimes) > 0) return $mimes;
         return $mimes = include __DIR__ . '/storage/bin/mimes.php';
+    }
+
+    /**
+     * 获取存储类型
+     * @return array
+     */
+    public static function types(): array
+    {
+        return [
+            'local'  => lang('本地服务器存储'),
+            'qiniu'  => lang('七牛云对象存储'),
+            'upyun'  => lang('又拍云USS存储'),
+            'alioss' => lang('阿里云OSS存储'),
+            'txcos'  => lang('腾讯云COS存储'),
+        ];
     }
 
     /**
@@ -183,9 +205,9 @@ abstract class Storage
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, 1);
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        $content = curl_exec($ch);
+        $body = curl_exec($ch) ?: '';
         curl_close($ch);
-        return $content ?: '';
+        return $body;
     }
 
     /**
@@ -201,6 +223,7 @@ abstract class Storage
             $compress = [
                 'LocalStorage'  => '',
                 'QiniuStorage'  => '?imageslim',
+                'UpyunStorage'  => '!/format/webp',
                 'TxcosStorage'  => '?imageMogr2/format/webp',
                 'AliossStorage' => '?x-oss-process=image/format,webp',
             ];
@@ -209,7 +232,11 @@ abstract class Storage
             $suffix = in_array($extens, ['png', 'jpg', 'jpeg']) ? ($compress[$class] ?? '') : '';
         }
         if (is_string($attname) && strlen($attname) > 0 && stripos($this->link, 'full') !== false) {
-            $suffix .= ($suffix ? '&' : '?') . 'attname=' . urlencode($attname);
+            if ($this->type === 'upyun') {
+                $suffix .= ($suffix ? '&' : '?') . '_upd=' . urlencode($attname);
+            } else {
+                $suffix .= ($suffix ? '&' : '?') . 'attname=' . urlencode($attname);
+            }
         }
         return $suffix;
     }
@@ -223,6 +250,9 @@ abstract class Storage
     {
         if (strpos($name, '?') !== false) {
             return strstr($name, '?', true);
+        }
+        if (stripos($name, '!') !== false) {
+            return strstr($name, '!', true);
         }
         return $name;
     }

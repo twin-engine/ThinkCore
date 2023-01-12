@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin;
@@ -71,7 +70,7 @@ abstract class Helper
 
     /**
      * 获取数据库查询对象
-     * @param Model|BaseQuery|string $query
+     * @param BaseQuery|Model|string $query
      * @return Query|Mongo|BaseQuery
      */
     public static function buildQuery($query)

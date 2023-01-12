@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin\storage;
@@ -35,27 +34,15 @@ class QiniuStorage extends Storage
         $this->accessKey = sysconf('storage.qiniu_access_key');
         $this->secretKey = sysconf('storage.qiniu_secret_key');
         // 计算链接前缀
+        $host = strtolower(sysconf('storage.qiniu_http_domain'));
         $type = strtolower(sysconf('storage.qiniu_http_protocol'));
-        $domain = strtolower(sysconf('storage.qiniu_http_domain'));
         if ($type === 'auto') {
-            $this->prefix = "//{$domain}";
+            $this->domain = "//{$host}";
         } elseif (in_array($type, ['http', 'https'])) {
-            $this->prefix = "{$type}://{$domain}";
-        } else throw new Exception('未配置七牛云URL域名哦');
-    }
-
-    /**
-     * 获取当前实例对象
-     * @param null|string $name
-     * @return static
-     * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    public static function instance(?string $name = null)
-    {
-        return parent::instance('qiniu');
+            $this->domain = "{$type}://{$host}";
+        } else {
+            throw new Exception(lang('未配置七牛云URL域名哦'));
+        }
     }
 
     /**
@@ -102,7 +89,7 @@ class QiniuStorage extends Storage
     public function del(string $name, bool $safe = false): bool
     {
         [$EncodedEntryURI, $AccessToken] = $this->getAccessToken($name, 'delete');
-        $data = json_decode(HttpExtend::post("http://rs.qiniu.com/delete/{$EncodedEntryURI}", [], [
+        $data = json_decode(HttpExtend::post("https://rs.qiniu.com/delete/{$EncodedEntryURI}", [], [
             'headers' => ["Authorization:QBox {$AccessToken}"],
         ]), true);
         return empty($data['error']);
@@ -128,7 +115,7 @@ class QiniuStorage extends Storage
      */
     public function url(string $name, bool $safe = false, ?string $attname = null): string
     {
-        return "{$this->prefix}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
+        return "{$this->domain}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
     }
 
     /**
@@ -152,7 +139,7 @@ class QiniuStorage extends Storage
     public function info(string $name, bool $safe = false, ?string $attname = null): array
     {
         [$entry, $token] = $this->getAccessToken($name);
-        $data = json_decode(HttpExtend::get("http://rs.qiniu.com/stat/{$entry}", [], ['headers' => ["Authorization: QBox {$token}"]]), true);
+        $data = json_decode(HttpExtend::get("https://rs.qiniu.com/stat/{$entry}", [], ['headers' => ["Authorization: QBox {$token}"]]), true);
         return isset($data['md5']) ? ['file' => $name, 'url' => $this->url($name, $safe, $attname), 'key' => $name] : [];
     }
 
@@ -167,34 +154,46 @@ class QiniuStorage extends Storage
     public function upload(): string
     {
         $protocol = $this->app->request->isSsl() ? 'https' : 'http';
+        // 注：汉字为兼容旧版本区域配置
         switch (sysconf('storage.qiniu_region')) {
             case '华东':
+            case 'up.qiniup.com':
                 return "{$protocol}://up.qiniup.com";
+            case 'up-cn-east-2.qiniup.com':
+                return "{$protocol}://up-cn-east-2.qiniup.com";
             case '华北':
+            case 'up-z1.qiniup.com':
                 return "{$protocol}://up-z1.qiniup.com";
             case '华南':
+            case 'up-z2.qiniup.com':
                 return "{$protocol}://up-z2.qiniup.com";
             case '北美':
+            case 'up-na0.qiniup.com':
                 return "{$protocol}://up-na0.qiniup.com";
             case '东南亚':
+            case 'up-as0.qiniup.com':
                 return "{$protocol}://up-as0.qiniup.com";
+            case 'up-ap-northeast-1.qiniup.com':
+                return "{$protocol}://up-ap-northeast-1.qiniup.com";
             default:
-                throw new Exception('未配置七牛云空间区域哦');
+                throw new Exception(lang('未配置七牛云空间区域哦'));
         }
     }
 
     /**
      * 获取文件上传令牌
-     * @param null|string $name 文件名称
+     * @param ?string $name 文件名称
      * @param integer $expires 有效时间
-     * @param null|string $attname 下载名称
+     * @param ?string $attname 下载名称
      * @return string
      */
     public function buildUploadToken(?string $name = null, int $expires = 3600, ?string $attname = null): string
     {
+        $key = is_null($name) ? '$(key)' : $name;
+        $url = "{$this->domain}/$(key){$this->getSuffix($attname,$name)}";
         $policy = $this->safeBase64(json_encode([
             "deadline"   => time() + $expires, "scope" => is_null($name) ? $this->bucket : "{$this->bucket}:{$name}",
-            'returnBody' => json_encode(['uploaded' => true, 'filename' => '$(key)', 'url' => "{$this->prefix}/$(key){$this->getSuffix($attname,$name)}", 'key' => $name, 'file' => $name], JSON_UNESCAPED_UNICODE),
+            'returnBody' => json_encode(['uploaded' => true, 'filename' => '$(key)', 'url' => $url, 'key' => $key, 'file' => $key], JSON_UNESCAPED_UNICODE),
         ]));
         return "{$this->accessKey}:{$this->safeBase64(hash_hmac('sha1', $policy, $this->secretKey, true))}:{$policy}";
     }
@@ -229,11 +228,13 @@ class QiniuStorage extends Storage
     public static function region(): array
     {
         return [
-            'up.qiniup.com'     => '华东',
-            'up-z1.qiniup.com'  => '华北',
-            'up-z2.qiniup.com'  => '华南',
-            'up-na0.qiniup.com' => '北美',
-            'up-as0.qiniup.com' => '东南亚',
+            'up.qiniup.com'                => lang('华东-浙江'),
+            'up-cn-east-2.qiniup.com'      => lang('华东-浙江2'),
+            'up-z1.qiniup.com'             => lang('华北-河北'),
+            'up-z2.qiniup.com'             => lang('华南-广东'),
+            'up-na0.qiniup.com'            => lang('北美-洛杉矶'),
+            'up-as0.qiniup.com'            => lang('亚太-新加坡'),
+            'up-ap-northeast-1.qiniup.com' => lang('亚太-首尔'),
         ];
     }
 }

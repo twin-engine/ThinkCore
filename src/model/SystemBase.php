@@ -1,7 +1,5 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\model;
@@ -50,17 +48,17 @@ class SystemBase extends Model
      */
     public static function types(bool $simple = false): array
     {
-        $types = static::mk()->where(['deleted' => 0])->distinct(true)->column('type');
+        $types = static::mk()->where(['deleted' => 0])->distinct()->column('type');
         if (empty($types) && empty($simple)) $types = ['身份权限'];
         return $types;
     }
 
     /**
      * 格式化创建时间
-     * @param string $value
+     * @param mixed $value
      * @return string
      */
-    public function getCreateAtAttr(string $value): string
+    public function getCreateAtAttr($value): string
     {
         return format_datetime($value);
     }

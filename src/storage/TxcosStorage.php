@@ -54,27 +54,15 @@ class TxcosStorage extends Storage
         $this->secretId = sysconf('storage.txcos_access_key');
         $this->secretKey = sysconf('storage.txcos_secret_key');
         // 计算链接前缀
+        $host = strtolower(sysconf('storage.txcos_http_domain'));
         $type = strtolower(sysconf('storage.txcos_http_protocol'));
-        $domain = strtolower(sysconf('storage.txcos_http_domain'));
         if ($type === 'auto') {
-            $this->prefix = "//{$domain}";
+            $this->domain = "//{$host}";
         } elseif (in_array($type, ['http', 'https'])) {
-            $this->prefix = "{$type}://{$domain}";
-        } else throw new Exception('未配置腾讯云COS访问域名哦');
-    }
-
-    /**
-     * 获取当前实例对象
-     * @param null|string $name
-     * @return TxcosStorage
-     * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
-     */
-    public static function instance(?string $name = null)
-    {
-        return parent::instance('txcos');
+            $this->domain = "{$type}://{$host}";
+        } else {
+            throw new Exception(lang('未配置腾讯云COS访问域名哦'));
+        }
     }
 
     /**
@@ -120,7 +108,7 @@ class TxcosStorage extends Storage
     public function del(string $name, bool $safe = false): bool
     {
         [$file] = explode('?', $name);
-        $result = HttpExtend::request('DELETE', "http://{$this->bucket}.{$this->point}/{$file}", [
+        $result = HttpExtend::request('DELETE', "https://{$this->bucket}.{$this->point}/{$file}", [
             'returnHeader' => true, 'headers' => $this->headerSign('DELETE', $file),
         ]);
         return is_numeric(stripos($result, '204 No Content'));
@@ -135,7 +123,7 @@ class TxcosStorage extends Storage
     public function has(string $name, bool $safe = false): bool
     {
         $file = $this->delSuffix($name);
-        $result = HttpExtend::request('HEAD', "http://{$this->bucket}.{$this->point}/{$file}", [
+        $result = HttpExtend::request('HEAD', "https://{$this->bucket}.{$this->point}/{$file}", [
             'returnHeader' => true, 'headers' => $this->headerSign('HEAD', $name),
         ]);
         return is_numeric(stripos($result, 'HTTP/1.1 200 OK'));
@@ -150,7 +138,7 @@ class TxcosStorage extends Storage
      */
     public function url(string $name, bool $safe = false, ?string $attname = null): string
     {
-        return "{$this->prefix}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
+        return "{$this->domain}/{$this->delSuffix($name)}{$this->getSuffix($attname,$name)}";
     }
 
     /**
@@ -272,28 +260,29 @@ class TxcosStorage extends Storage
     public static function region(): array
     {
         return [
-            'cos.ap-beijing-1.myqcloud.com'     => '中国大陆 公有云地域 北京一区',
-            'cos.ap-beijing.myqcloud.com'       => '中国大陆 公有云地域 北京',
-            'cos.ap-nanjing.myqcloud.com'       => '中国大陆 公有云地域 南京',
-            'cos.ap-shanghai.myqcloud.com'      => '中国大陆 公有云地域 上海',
-            'cos.ap-guangzhou.myqcloud.com'     => '中国大陆 公有云地域 广州',
-            'cos.ap-chengdu.myqcloud.com'       => '中国大陆 公有云地域 成都',
-            'cos.ap-chongqing.myqcloud.com'     => '中国大陆 公有云地域 重庆',
-            'cos.ap-shenzhen-fsi.myqcloud.com'  => '中国大陆 金融云地域 深圳金融',
-            'cos.ap-shanghai-fsi.myqcloud.com'  => '中国大陆 金融云地域 上海金融',
-            'cos.ap-beijing-fsi.myqcloud.com'   => '中国大陆 金融云地域 北京金融',
-            'cos.ap-hongkong.myqcloud.com'      => '亚太地区 公有云地域 中国香港',
-            'cos.ap-singapore.myqcloud.com'     => '亚太地区 公有云地域 新加坡',
-            'cos.ap-mumbai.myqcloud.com'        => '亚太地区 公有云地域 孟买',
-            'cos.ap-seoul.myqcloud.com'         => '亚太地区 公有云地域 首尔',
-            'cos.ap-bangkok.myqcloud.com'       => '亚太地区 公有云地域 曼谷',
-            'cos.ap-tokyo.myqcloud.com'         => '亚太地区 公有云地域 东京',
-            'cos.na-siliconvalley.myqcloud.com' => '北美地区 公有云地域 硅谷',
-            'cos.na-ashburn.myqcloud.com'       => '北美地区 公有云地域 弗吉尼亚',
-            'cos.na-toronto.myqcloud.com'       => '北美地区 公有云地域 多伦多',
-            'cos.eu-frankfurt.myqcloud.com'     => '欧洲地区 公有云地域 法兰克福',
-            'cos.eu-moscow.myqcloud.com'        => '欧洲地区 公有云地域 莫斯科	',
+            'cos.ap-beijing-1.myqcloud.com'     => lang('中国大陆 公有云地域 北京一区'),
+            'cos.ap-beijing.myqcloud.com'       => lang('中国大陆 公有云地域 北京'),
+            'cos.ap-nanjing.myqcloud.com'       => lang('中国大陆 公有云地域 南京'),
+            'cos.ap-shanghai.myqcloud.com'      => lang('中国大陆 公有云地域 上海'),
+            'cos.ap-guangzhou.myqcloud.com'     => lang('中国大陆 公有云地域 广州'),
+            'cos.ap-chengdu.myqcloud.com'       => lang('中国大陆 公有云地域 成都'),
+            'cos.ap-chongqing.myqcloud.com'     => lang('中国大陆 公有云地域 重庆'),
+            'cos.ap-shenzhen-fsi.myqcloud.com'  => lang('中国大陆 金融云地域 深圳金融'),
+            'cos.ap-shanghai-fsi.myqcloud.com'  => lang('中国大陆 金融云地域 上海金融'),
+            'cos.ap-beijing-fsi.myqcloud.com'   => lang('中国大陆 金融云地域 北京金融'),
+            'cos.ap-hongkong.myqcloud.com'      => lang('亚太地区 公有云地域 中国香港'),
+            'cos.ap-singapore.myqcloud.com'     => lang('亚太地区 公有云地域 新加坡'),
+            'cos.ap-mumbai.myqcloud.com'        => lang('亚太地区 公有云地域 孟买'),
+            'cos.ap-jakarta.myqcloud.com'       => lang('亚太地区 公有云地域 雅加达'),
+            'cos.ap-seoul.myqcloud.com'         => lang('亚太地区 公有云地域 首尔'),
+            'cos.ap-bangkok.myqcloud.com'       => lang('亚太地区 公有云地域 曼谷'),
+            'cos.ap-tokyo.myqcloud.com'         => lang('亚太地区 公有云地域 东京'),
+            'cos.na-siliconvalley.myqcloud.com' => lang('北美地区 公有云地域 硅谷'),
+            'cos.na-ashburn.myqcloud.com'       => lang('北美地区 公有云地域 弗吉尼亚'),
+            'cos.na-toronto.myqcloud.com'       => lang('北美地区 公有云地域 多伦多'),
+            'cos.sa-saopaulo.myqcloud.com'      => lang('北美地区 公有云地域 圣保罗'),
+            'cos.eu-frankfurt.myqcloud.com'     => lang('欧洲地区 公有云地域 法兰克福'),
+            'cos.eu-moscow.myqcloud.com'        => lang('欧洲地区 公有云地域 莫斯科'),
         ];
     }
-
 }

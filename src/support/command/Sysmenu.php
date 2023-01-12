@@ -1,9 +1,8 @@
 <?php
 
-
 declare (strict_types=1);
 
-namespace think\admin\command;
+namespace think\admin\support\command;
 
 use think\admin\Command;
 use think\admin\extend\DataExtend;
@@ -11,10 +10,10 @@ use think\admin\model\SystemMenu;
 
 /**
  * 重置并清理系统菜单
- * Class Menu
- * @package think\admin\command
+ * Class Sysmenu
+ * @package think\admin\support\command
  */
-class Menu extends Command
+class Sysmenu extends Command
 {
     /**
      * 指令任务配置
@@ -43,14 +42,14 @@ class Menu extends Command
             $this->setQueueMessage($total, ++$count, "重写1级菜单：{$sub1['title']}");
             if (!empty($sub1['sub'])) foreach ($sub1['sub'] as $sub2) {
                 $pid2 = $this->write($sub2, $pid1);
-                $this->setQueueMessage($total, ++$count, "重写2级菜单：{$sub2['title']}");
+                $this->setQueueMessage($total, ++$count, "重写2级菜单：-> {$sub2['title']}");
                 if (!empty($sub2['sub'])) foreach ($sub2['sub'] as $sub3) {
                     $this->write($sub3, $pid2);
-                    $this->setQueueMessage($total, ++$count, "重写3级菜单：{$sub3['title']}");
+                    $this->setQueueMessage($total, ++$count, "重写3级菜单：-> -> {$sub3['title']}");
                 }
             }
         }
-        $this->setQueueMessage($total, $total, "完成重置系统菜单编号！");
+        $this->setQueueMessage($total, $count, "完成重置系统菜单编号！");
     }
 
     /**

@@ -1,6 +1,5 @@
 <?php
 
-
 declare (strict_types=1);
 
 namespace think\admin\extend;
@@ -52,11 +51,23 @@ class CodeExtend
      */
     public static function uniqidNumber(int $size = 12, string $prefix = ''): string
     {
-        $time = time() . '';
+        $time = strval(time());
         if ($size < 10) $size = 10;
         $code = $prefix . (intval($time[0]) + intval($time[1])) . substr($time, 2) . rand(0, 9);
         while (strlen($code) < $size) $code .= rand(0, 9);
         return $code;
+    }
+
+    /**
+     * 文本转为UTF8编码
+     * @param string $content
+     * @return string
+     */
+    public static function text2utf8(string $content): string
+    {
+        return mb_convert_encoding($content, 'UTF-8', mb_detect_encoding($content, [
+            'ASCII', 'UTF-8', 'GB2312', 'GBK', 'BIG5',
+        ]));
     }
 
     /**
@@ -102,5 +113,25 @@ class CodeExtend
     public static function deSafe64(string $text): string
     {
         return base64_decode(str_pad(strtr($text, '-_', '+/'), strlen($text) % 4, '='));
+    }
+
+    /**
+     * 压缩数据对象
+     * @param mixed $data
+     * @return string
+     */
+    public static function enzip($data): string
+    {
+        return static::enSafe64(gzcompress(serialize($data)));
+    }
+
+    /**
+     * 解压数据对象
+     * @param string $string
+     * @return mixed
+     */
+    public static function dezip(string $string)
+    {
+        return unserialize(gzuncompress(static::deSafe64($string)));
     }
 }

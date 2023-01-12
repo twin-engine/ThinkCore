@@ -1,7 +1,5 @@
 <?php
 
-
-
 declare (strict_types=1);
 
 namespace think\admin\service;
@@ -49,21 +47,18 @@ class QueueService extends Service
      * @param string $code
      * @return static
      * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     public function initialize(string $code = ''): QueueService
     {
         if (!empty($code)) {
             $this->code = $code;
-            $this->record = SystemQueue::mk()->where(['code' => $this->code])->find();
+            $this->record = SystemQueue::mk()->where(['code' => $code])->findOrEmpty()->toArray();
             if (empty($this->record)) {
                 $this->app->log->error("Qeueu initialize failed, Queue {$code} not found.");
                 throw new Exception("Qeueu initialize failed, Queue {$code} not found.");
             }
-            [$this->code, $this->title] = [$this->record['code'], $this->record['title']];
             $this->data = json_decode($this->record['exec_data'], true) ?: [];
+            $this->title = $this->record['title'];
         }
         return $this;
     }
@@ -73,9 +68,6 @@ class QueueService extends Service
      * @param integer $wait 等待时间
      * @return $this
      * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
      */
     public function reset(int $wait = 0): QueueService
     {
@@ -83,7 +75,7 @@ class QueueService extends Service
             $this->app->log->error("Qeueu reset failed, Queue {$this->code} data cannot be empty!");
             throw new Exception("Qeueu reset failed, Queue {$this->code} data cannot be empty!");
         }
-        SystemQueue::mk()->where(['code' => $this->code])->strict(false)->failException(true)->update([
+        SystemQueue::mk()->where(['code' => $this->code])->strict(false)->failException()->update([
             'exec_pid' => 0, 'exec_time' => time() + $wait, 'status' => 1,
         ]);
         return $this->initialize($this->code);
@@ -98,9 +90,9 @@ class QueueService extends Service
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function addCleanQueue(int $loops = 3600): QueueService
+    public static function addCleanQueue(int $loops = 3600): QueueService
     {
-        return $this->register('定时清理系统任务数据', "xadmin:service clean", 0, [], 0, $loops);
+        return static::register('定时清理系统任务数据', "xadmin:service clean", 0, [], 0, $loops);
     }
 
     /**
@@ -117,15 +109,15 @@ class QueueService extends Service
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function register(string $title, string $command, int $later = 0, array $data = [], int $rscript = 0, int $loops = 0): QueueService
+    public static function register(string $title, string $command, int $later = 0, array $data = [], int $rscript = 0, int $loops = 0): QueueService
     {
         $map = [['title', '=', $title], ['status', 'in', [1, 2]]];
         if (empty($rscript) && ($queue = SystemQueue::mk()->where($map)->find())) {
             throw new Exception(lang('think_library_queue_exist'), 0, $queue['code']);
         }
-        $this->code = CodeExtend::uniqidDate(16, 'Q');
-        SystemQueue::mk()->failException(true)->insert([
-            'code'       => $this->code,
+        $code = CodeExtend::uniqidDate(16, 'Q');
+        SystemQueue::mk()->failException()->insert([
+            'code'       => $code,
             'title'      => $title,
             'command'    => $command,
             'attempts'   => 0,
@@ -135,10 +127,11 @@ class QueueService extends Service
             'enter_time' => 0,
             'outer_time' => 0,
             'loops_time' => $loops,
-            'create_at'  => date('Y-m-d H:i:s')
+            'create_at'  => date('Y-m-d H:i:s'),
         ]);
-        $this->progress(1, '>>> 任务创建成功 <<<', '0.00');
-        return $this->initialize($this->code);
+        $that = static::instance([], true)->initialize($code);
+        $that->progress(1, '>>> 任务创建成功 <<<', '0.00');
+        return $that;
     }
 
     /**
@@ -164,7 +157,7 @@ class QueueService extends Service
             $data = $this->app->cache->get($ckey, [
                 'code' => $this->code, 'status' => $status, 'message' => $message, 'progress' => $progress, 'history' => [],
             ]);
-        } catch (\Exception | Error $exception) {
+        } catch (\Exception|Error $exception) {
             return $this->progress($status, $message, $progress, $backline);
         }
         while (--$backline > -1 && count($data['history']) > 0) array_pop($data['history']);
@@ -199,13 +192,11 @@ class QueueService extends Service
      */
     public function message(int $total, int $count, string $message = '', int $backline = 0): void
     {
-        $total = max($total, 1);
-        $prefix = str_pad("{$count}", strlen("{$total}"), '0', STR_PAD_LEFT);
-        $message = "[{$prefix}/{$total}] {$message}";
+        $prefix = str_pad("{$count}", strlen(strval($total)), '0', STR_PAD_LEFT);
         if (defined('WorkQueueCode')) {
-            $this->progress(2, $message, sprintf("%.2f", $count / $total * 100), $backline);
+            $this->progress(2, "[{$prefix}/{$total}] {$message}", sprintf("%.2f", $count / max($total, 1) * 100), $backline);
         } else {
-            echo $message . PHP_EOL;
+            ProcessService::message("[{$prefix}/{$total}] {$message}", $backline);
         }
     }
 
@@ -232,10 +223,9 @@ class QueueService extends Service
     /**
      * 执行任务处理
      * @param array $data 任务参数
-     * @return void
+     * @return void|mixed|string
      */
     public function execute(array $data = [])
     {
     }
-
 }
