@@ -7,6 +7,7 @@ namespace think\admin\service;
 use think\admin\Exception;
 use think\admin\Helper;
 use think\admin\Library;
+use think\admin\model\SysConfig;
 use think\admin\model\SystemConfig;
 use think\admin\model\SystemData;
 use think\admin\model\SystemOplog;
@@ -132,6 +133,31 @@ class SystemService extends Service
             }
             return $field ? ($group[$field] ?? $default) : $group;
         } else {
+            return $default;
+        }
+    }
+
+    /**
+     * 读取系统配置数据
+     * @param string $groupCode
+     * @param string $code
+     * @return array|mixed|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    public static function getConfig(string $groupCode = '', string $code = '', $default = '')
+    {
+        try {
+            // 读取数据
+            $value = SysConfig::mk()->where(['group_code' => $groupCode, 'code' => $code])->value('value');
+            if (is_null($value)){
+                return $default;
+            }else{
+                return $default=trim($value);
+            }
+        } catch (\Exception $exception) {
+            trace_file($exception);
             return $default;
         }
     }
