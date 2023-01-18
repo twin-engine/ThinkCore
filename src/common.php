@@ -245,13 +245,15 @@ if (!function_exists('syspath')) {
 if (!function_exists('sysoplog')) {
     /**
      * 写入系统日志
+     * 新增指定操作用户名参数 2022/4/11 by rotoos
+     * @param string $username 操作用户名
      * @param string $action 日志行为
      * @param string $content 日志内容
      * @return boolean
      */
-    function sysoplog(string $action, string $content): bool
+    function sysoplog(string $username, string $action, string $content): bool
     {
-        return SystemService::setOplog($action, $content);
+        return SystemService::setOplog($username, $action, $content);
     }
 }
 if (!function_exists('systoken')) {

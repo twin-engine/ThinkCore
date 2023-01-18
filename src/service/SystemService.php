@@ -318,28 +318,30 @@ class SystemService extends Service
 
     /**
      * 写入系统日志内容
+     * @param string $username
      * @param string $action
      * @param string $content
-     * @return boolean
+     * @return bool
      */
-    public static function setOplog(string $action, string $content): bool
+    public static function setOplog(string $username, string $action, string $content): bool
     {
-        return SystemOplog::mk()->save(static::getOplog($action, $content)) !== false;
+        return SystemOplog::mk()->save(static::getOplog($username, $action, $content)) !== false;
     }
 
     /**
      * 获取系统日志内容
+     * @param string $username
      * @param string $action
      * @param string $content
      * @return array
      */
-    public static function getOplog(string $action, string $content): array
+    public static function getOplog(string $username, string $action, string $content): array
     {
         return [
             'node'      => NodeService::getCurrent(),
             'action'    => $action, 'content' => $content,
             'geoip'     => Library::$sapp->request->ip() ?: '127.0.0.1',
-            'username'  => AdminService::getUserName() ?: '-',
+            'username'  => AdminService::getUserName() ?: $username,
             'create_at' => date('Y-m-d H:i:s'),
         ];
     }
