@@ -641,3 +641,66 @@ if (!function_exists('between_time')) {
         return ['start_time' => current($times), 'end_time' => next($times)];
     }
 }
+if (!function_exists('returnSquarePoint')) {
+    /**
+     * * 计算某个经纬度的周围某段距离的正方形的四个点
+     * @param $lng float 经度
+     * @param $lat float 纬度
+     * @param $distance float 该点所在圆的半径，该圆与此正方形内切，默认值为1千米 10即10公里
+     * @param $radius 地球半径 平均6371km
+     * @return array[] 正方形的四个点的经纬度坐标
+     */
+    function returnSquarePoint($lng, $lat, $distance = 1, $radius = 6371)
+    {
+        $dlng = 2 * asin(sin($distance / (2 * $radius)) / cos(deg2rad($lat)));
+        $dlng = rad2deg($dlng);
+
+        $dlat = $distance / $radius;
+        $dlat = rad2deg($dlat);
+
+        return array(
+            'left-top' => array(
+                'lat' => $lat + $dlat,
+                'lng' => $lng - $dlng
+            ),
+            'right-top' => array(
+                'lat' => $lat + $dlat,
+                'lng' => $lng + $dlng
+            ),
+            'left-bottom' => array(
+                'lat' => $lat - $dlat,
+                'lng' => $lng - $dlng
+            ),
+            'right-bottom' => array(
+                'lat' => $lat - $dlat,
+                'lng' => $lng + $dlng
+            )
+        );
+    }
+}
+if (!function_exists('getPointDistance')) {
+    /**
+     * * 计算两个已知经纬度之间的距离
+     * @param $lng1 float 经度1
+     * @param $lat1 float 纬度1
+     * @param $lng2 float 经度2
+     * @param $lat2 float 纬度2
+     * @return string 距离(单位米)
+     */
+    function getPointDistance($lng1, $lat1, $lng2, $lat2)
+    {
+        $earthRadius = 6371; //地球平均半径,km
+        //deg2rad()函数将角度转为弧度
+        $radLat1 = deg2rad($lat1);
+        $radLat2 = deg2rad($lat2);
+        $radLng1 = deg2rad($lng1);
+        $radLng2 = deg2rad($lng2);
+        $d_lat = $radLat1 - $radLat2;
+        $d_lng = $radLng1 - $radLng2;
+        $distance = 2 * asin(sqrt(pow(sin($d_lat / 2), 2) + cos($radLat1) * cos($radLat2) * pow(sin($d_lng / 2), 2))) * $earthRadius * 1000;
+        if ($distance > 1000) {
+            return round($distance / 1000, 2) . 'km';
+        }
+        return (int)$distance . 'm';
+    }
+}
