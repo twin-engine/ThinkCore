@@ -12,6 +12,9 @@ use think\admin\service\QueueService;
 use think\admin\service\RuntimeService;
 use think\admin\service\SystemService;
 use think\admin\Storage;
+use think\db\exception\DataNotFoundException;
+use think\db\exception\DbException;
+use think\db\exception\ModelNotFoundException;
 use think\db\Query;
 use think\Model;
 
@@ -178,9 +181,9 @@ if (!function_exists('sysconf')) {
      * @param string $name 参数名称
      * @param mixed $value 参数内容
      * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws DbException
+     * @throws ModelNotFoundException
      */
     function sysconf(string $name = '', $value = null)
     {
@@ -197,9 +200,9 @@ if (!function_exists('syconfig')) {
      * @param string $groupCode 常量的分类名称
      * @param string $code 参数名称
      * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws DbException
+     * @throws ModelNotFoundException
      */
     function syconfig(string $groupCode = '', string $code = '')
     {
@@ -212,9 +215,9 @@ if (!function_exists('sysdata')) {
      * @param string $name 数据名称
      * @param mixed $value 数据内容
      * @return mixed
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws DbException
+     * @throws ModelNotFoundException
      */
     function sysdata(string $name, $value = null)
     {
@@ -272,9 +275,9 @@ if (!function_exists('sysqueue')) {
      * @param integer $loops 循环等待时间
      * @return string
      * @throws \think\admin\Exception
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws DbException
+     * @throws ModelNotFoundException
      */
     function sysqueue(string $title, string $command, int $later = 0, array $data = [], int $rscript = 1, int $loops = 0): string
     {
@@ -352,9 +355,9 @@ if (!function_exists('data_save')) {
      * @param string $key 条件主键限制
      * @param mixed $where 其它的where条件
      * @return boolean|integer
-     * @throws \think\db\exception\DataNotFoundException
-     * @throws \think\db\exception\DbException
-     * @throws \think\db\exception\ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws DbException
+     * @throws ModelNotFoundException
      */
     function data_save($dbQuery, array $data, string $key = 'id', $where = [])
     {
@@ -378,7 +381,7 @@ if (!function_exists('down_file')) {
 if (!function_exists('trace_file')) {
     /**
      * 输出异常数据到文件
-     * @param \Exception $exception
+     * @param Exception $exception
      * @return boolean
      */
     function trace_file(Exception $exception): bool
@@ -433,7 +436,7 @@ if (!function_exists('format_datetime')) {
         }
     }
 }
-if(!function_exists('desensitize')){
+if (!function_exists('desensitize')) {
     /**
      * 信息脱敏函数
      * @param $string 字符串
@@ -442,58 +445,60 @@ if(!function_exists('desensitize')){
      * @param string $re 替换字符
      * @return string
      */
-    function desensitize($string = '', $start = 0, $end = 0, $re = '*'){
-        if(empty($string) || empty($end) || empty($re)) return $string;
+    function desensitize($string = '', $start = 0, $end = 0, $re = '*')
+    {
+        if (empty($string) || empty($end) || empty($re)) return $string;
         $strLen = strlen($string);
-        if($strLen < ($start + $end)) return $string;
-        $strEnd = $strLen-$end;
-        for($i=0; $i<$strLen; $i++) {
-            if($i>=$start && $i<$strEnd)
+        if ($strLen < ($start + $end)) return $string;
+        $strEnd = $strLen - $end;
+        for ($i = 0; $i < $strLen; $i++) {
+            if ($i >= $start && $i < $strEnd)
                 $str_arr[] = $re;
             else
                 $str_arr[] = mb_substr($string, $i, 1);
         }
-        return implode('',$str_arr);
+        return implode('', $str_arr);
     }
 }
-if(!function_exists('real_ip')){
+if (!function_exists('real_ip')) {
     /**
      * 获得用户的真实IP地址
      *
      * @access  public
      * @return  string
      */
-    function real_ip(){
+    function real_ip()
+    {
         static $realip = NULL;
-        if ($realip !== NULL){
+        if ($realip !== NULL) {
             return $realip;
         }
-        if (isset($_SERVER)){
-            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])){
+        if (isset($_SERVER)) {
+            if (isset($_SERVER['HTTP_X_FORWARDED_FOR'])) {
                 $arr = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
                 /* 取X-Forwarded-For中第一个非unknown的有效IP字符串 */
-                foreach ($arr AS $ip){
+                foreach ($arr as $ip) {
                     $ip = trim($ip);
-                    if ($ip != 'unknown'){
+                    if ($ip != 'unknown') {
                         $realip = $ip;
                         break;
                     }
                 }
-            }elseif (isset($_SERVER['HTTP_CLIENT_IP'])){
+            } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $realip = $_SERVER['HTTP_CLIENT_IP'];
-            }else{
-                if (isset($_SERVER['REMOTE_ADDR'])){
+            } else {
+                if (isset($_SERVER['REMOTE_ADDR'])) {
                     $realip = $_SERVER['REMOTE_ADDR'];
-                }else{
+                } else {
                     $realip = '0.0.0.0';
                 }
             }
-        }else{
-            if (getenv('HTTP_X_FORWARDED_FOR')){
+        } else {
+            if (getenv('HTTP_X_FORWARDED_FOR')) {
                 $realip = getenv('HTTP_X_FORWARDED_FOR');
-            }elseif (getenv('HTTP_CLIENT_IP')){
+            } elseif (getenv('HTTP_CLIENT_IP')) {
                 $realip = getenv('HTTP_CLIENT_IP');
-            }else{
+            } else {
                 $realip = getenv('REMOTE_ADDR');
             }
         }
@@ -509,35 +514,36 @@ if (!function_exists('http_post_data')) {
      * @param $data_string
      * @return array
      */
-    function http_post_data($url, $data_string) {
+    function http_post_data($url, $data_string)
+    {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_POST, 1);
         curl_setopt($ch, CURLOPT_URL, $url);
         curl_setopt($ch, CURLOPT_POSTFIELDS, $data_string);
-    	curl_setopt($ch, CURLOPT_HTTPHEADER, array(
-    		'Content-Type: application/json; charset=utf-8',
-    		'Content-Length: ' . strlen($data_string))
-    	);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+                'Content-Type: application/json; charset=utf-8',
+                'Content-Length: ' . strlen($data_string))
+        );
         ob_start();
         curl_exec($ch);
         $return_content = ob_get_contents();
         ob_end_clean();
-    
+
         $return_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         return array($return_code, $return_content);
     }
-    
+
 }
 if (!function_exists('getUnixTimestamp')) {
     /**
      * 13位时间戳转换
      * @return float
      */
-    function getUnixTimestamp ()
+    function getUnixTimestamp()
     {
         list($s1, $s2) = explode(' ', microtime());
-        return (float)sprintf('%.0f',(floatval($s1) + floatval($s2)) * 1000);
-    }   
+        return (float)sprintf('%.0f', (floatval($s1) + floatval($s2)) * 1000);
+    }
 }
 
 if (!function_exists('curls')) {
@@ -560,7 +566,7 @@ if (!function_exists('curls')) {
         $info = curl_exec($ch);
         // 4. 释放curl句柄
         curl_close($ch);
- 
+
         return $info;
     }
 }
@@ -576,26 +582,25 @@ if (!function_exists('TimeToSeconds')) {
         $now = time();
         $expires_in = $end_time;
         $expires = $expires_in - $now;
-        if($expires > 0){
+        if ($expires > 0) {
             $seconds = (int)$expires;
-            if( $seconds < 60 ){
-                $format_time = gmstrftime('%S秒' , $seconds);
-            }elseif( $seconds < 3600 ){
-                $format_time = gmstrftime('%M分%S秒' , $seconds);
-            }elseif( $seconds < 86400 ){
-                $format_time = gmstrftime('%H时%M分%S秒' , $seconds);
-            }else{
-                $time = explode(' ' , gmstrftime('%j %H %M %S' , $seconds));//Array ( [0] => 04 [1] => 14 [2] => 14 [3] => 35 )
-                $format_time = ( $time[0] - 1 ) . '天' . $time[1] . '时' . $time[2] . '分' . $time[3] . '秒';
+            if ($seconds < 60) {
+                $format_time = gmstrftime('%S秒', $seconds);
+            } elseif ($seconds < 3600) {
+                $format_time = gmstrftime('%M分%S秒', $seconds);
+            } elseif ($seconds < 86400) {
+                $format_time = gmstrftime('%H时%M分%S秒', $seconds);
+            } else {
+                $time = explode(' ', gmstrftime('%j %H %M %S', $seconds));//Array ( [0] => 04 [1] => 14 [2] => 14 [3] => 35 )
+                $format_time = ($time[0] - 1) . '天' . $time[1] . '时' . $time[2] . '分' . $time[3] . '秒';
             }
-            return ltrim($format_time,'0');
-        }else{
+            return ltrim($format_time, '0');
+        } else {
             return 0;
         }
     }
 }
-if(!function_exists('get_http_type'))
-{
+if (!function_exists('get_http_type')) {
     /**
      * 获取当前网址协议
      * @return string
@@ -604,5 +609,33 @@ if(!function_exists('get_http_type'))
     {
         $http_type = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) ? 'https://' : 'http://';
         return $http_type;
+    }
+}
+if (!function_exists('str2time_date')) {
+    /**
+     * 日期转换时间戳(不保留时间)
+     * 例如: 2020-04-01 08:15:08 => 1585670400
+     * @param string $date
+     * @return false|int
+     */
+    function str2time_date(string $date)
+    {
+        return strtotime(date('Y-m-d', strtotime($date)));
+    }
+}
+if (!function_exists('between_time')) {
+    /**
+     * 格式化起止时间(为了兼容前端RangePicker组件)
+     * 2020-04-01T08:15:08.891Z => 1585670400
+     * @param array $times
+     * @return array
+     */
+    function between_time(array $times)
+    {
+        foreach ($times as &$time) {
+            $time = trim($time, '&quot;');
+            $time = str2time_date($time);
+        }
+        return ['start_time' => current($times), 'end_time' => next($times)];
     }
 }
