@@ -42,10 +42,6 @@ class ActionCaptchaService extends Service
      */
     public function check($captchaType,$token,$pointJson)
     {
-        /*$data = $this->_vali([
-            'token.require' => 'token不能为空!',
-            'pointJson.require' => 'Json数据不能为空!',
-        ]);*/
         try {
             $captchaService = $this->getCaptchaService($captchaType);
             $captchaService->check($token,$pointJson);
@@ -64,10 +60,6 @@ class ActionCaptchaService extends Service
      */
     public function verification($captchaType,$token,$pointJson)
     {
-        /*$data = $this->_vali([
-            'token.require' => 'token不能为空!',
-            'pointJson.require' => 'Json数据不能为空!',
-        ]);*/
         try {
             $captchaService = $this->getCaptchaService($captchaType);
             $captchaService->verification($token,$pointJson);
@@ -83,7 +75,6 @@ class ActionCaptchaService extends Service
      */
     protected function getCaptchaService($captchaType)
     {
-        //$captchaType = $this->request->post('captchaType', null);
         $config = $this->app->config->get('captcha');
         switch ($captchaType) {
             case "clickWord":
