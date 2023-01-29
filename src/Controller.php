@@ -91,9 +91,11 @@ class Controller extends stdClass
 
     /**
      * 返回失败的操作
-     * @param mixed $info 消息内容
-     * @param mixed $data 返回数据
-     * @param mixed $code 返回代码
+     * @param $info
+     * @param $data
+     * @param $code
+     * @param $success
+     * @return void
      */
     public function error($info, $data = '{-null-}', $code = 0, $success = false): void
     {
@@ -105,9 +107,11 @@ class Controller extends stdClass
 
     /**
      * 返回成功的操作
-     * @param mixed $info 消息内容
-     * @param mixed $data 返回数据
-     * @param mixed $code 返回代码
+     * @param $info
+     * @param $data
+     * @param $code
+     * @param $success
+     * @return void
      */
     public function success($info, $data = '{-null-}', $code = 200, $success = true): void
     {
