@@ -101,7 +101,7 @@ class Controller extends stdClass
     {
         if ($data === '{-null-}') $data = new stdClass();
         throw new HttpResponseException(json([
-            'success' => $success, 'code' => $code, 'info' => $info, 'data' => $data,
+            'success' => $success, 'code' => $code, 'message' => $info, 'data' => $data,
         ]));
     }
 
@@ -116,7 +116,7 @@ class Controller extends stdClass
     public function success($info, $data = '{-null-}', $code = 200, $success = true): void
     {
         if ($data === '{-null-}') $data = new stdClass();
-        $result = ['success' => $success, 'code' => $code, 'info' => $info, 'data' => $data];
+        $result = ['success' => $success, 'code' => $code, 'message' => $info, 'data' => $data];
         if (JwtExtend::getOutToken()) {
             $result['token'] = JwtExtend::getToken(JwtExtend::getOutData());
         }
