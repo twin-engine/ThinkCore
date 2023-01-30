@@ -7,6 +7,7 @@ use think\admin\Helper;
 use think\admin\service\AdminService;
 use think\db\BaseQuery;
 use think\db\Query;
+use think\exception\HttpResponseException;
 use think\Model;
 
 /**
@@ -29,7 +30,7 @@ class PageHelper extends Helper
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    public function init($dbQuery, bool $page = true, bool $display = false, $total = false, int $limit = 0, string $template = ''): array
+    public function init($dbQuery, $page = true, bool $display = true, $total = false, int $limit = 0, string $template = ''): array
     {
         $query = $this->autoSortQuery($dbQuery);
         if ($page !== false) {
@@ -41,25 +42,89 @@ class PageHelper extends Helper
                     $this->app->cookie->set('limit', ($limit = intval($limit >= 5 ? $limit : 20)) . '');
                 }
             }
+            $inner = strpos($get['spm'] ?? '', 'm-') === 0;
+            $prefix = $inner ? (sysuri('admin/index/index') . '#') : '';
             // 生成分页数据
-            $data = ($paginate = $query->paginate(['list_rows' => $limit, 'query' => $get], $this->getCount($query, $total)))->toArray();
+            $config = ['list_rows' => $limit, 'query' => $get];
+            if (is_numeric($page)) $config['page'] = $page;
+            $data = ($paginate = $query->paginate($config, $this->getCount($query, $total)))->toArray();
             $result = ['page' => ['limit' => $data['per_page'], 'total' => $data['total'], 'pages' => $data['last_page'], 'current' => $data['current_page']], 'list' => $data['data']];
             //xss过滤处理
             $this->xssFilter($result['list']);
             //某些字段后处理（图片、重要信息脱敏）
             $this->fieldAfterMk($query,$result['list']);
             // 分页跳转参数
+            $select = "<select onchange='location.href=this.options[this.selectedIndex].value'>";
+            if (in_array($limit, $limits)) foreach ($limits as $num) {
+                $get = array_merge($get, ['limit' => $num, 'page' => 1]);
+                $url = $this->app->request->baseUrl() . '?' . http_build_query($get, '', '&', PHP_QUERY_RFC3986);
+                $select .= sprintf('<option data-num="%d" value="%s" %s>%d</option>', $num, $prefix . $url, $limit === $num ? 'selected' : '', $num);
+            } else {
+                $select .= "<option selected>{$limit}</option>";
+            }
+            $html = lang('think_library_page_html', [$data['total'], "{$select}</select>", $data['last_page'], $data['current_page']]);
+            $link = $inner ? str_replace('<a href=', '<a data-open=', $paginate->render() ?: '') : ($paginate->render() ?: '');
+            $this->class->assign('pagehtml', "<div class='pagination-container nowrap'><span>{$html}</span>{$link}</div>");
         } else {
             $result = ['list' => $query->select()->toArray()];
         }
-        if (false !== $this->class->callback('_page_filter', $result['list'], $result)) {
+        if (false !== $this->class->callback('_page_filter', $result['list'], $result) && $display) {
             if ($this->output === 'get.json') {
-                $this->class->success('JSON-DATA', $result);
-            } 
+                $this->class->success('JSON数据获取成功！', $result);
+            } else {
+                $this->class->fetch($template, $result);
+            }
         }
         return $result;
     }
-    
+    /**
+     * 组件 Layui.Table 处理
+     * @param BaseQuery|Model|string $dbQuery
+     * @param string $template
+     * @return array
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    public function layTable($dbQuery, string $template = ''): array
+    {
+        if ($this->output === 'get.json') {
+            $get = $this->app->request->get();
+            $query = static::buildQuery($dbQuery);
+            // 根据参数排序
+            if (isset($get['_field_']) && isset($get['_order_'])) {
+                $dbQuery->order("{$get['_field_']} {$get['_order_']}");
+            }
+            return PageHelper::instance()->init($query);
+        }
+        if ($this->output === 'get.layui.table') {
+            $get = $this->app->request->get();
+            $query = $this->autoSortQuery($dbQuery);
+            // 根据参数排序
+            if (isset($get['_field_']) && isset($get['_order_'])) {
+                $query->order("{$get['_field_']} {$get['_order_']}");
+            }
+            // 数据分页处理
+            if (empty($get['page']) || empty($get['limit'])) {
+                $data = $query->select()->toArray();
+                $result = ['msg' => '', 'code' => 0, 'count' => count($data), 'data' => $data];
+            } else {
+                $cfg = ['list_rows' => $get['limit'], 'query' => $get];
+                $data = $query->paginate($cfg, static::getCount($query))->toArray();
+                $result = ['msg' => '', 'code' => 0, 'count' => $data['total'], 'data' => $data['data']];
+            }
+            static::xssFilter($result['data']);
+            if (false !== $this->class->callback('_page_filter', $result['data'], $result)) {
+                throw new HttpResponseException(json($result));
+            } else {
+                return $result;
+            }
+        } else {
+            $this->class->fetch($template);
+            return [];
+        }
+    }
+
     /**
      * 特殊字段的后处理（图片类、重要信息脱敏）
      * @param Model|BaseQuery|string $dbQuery

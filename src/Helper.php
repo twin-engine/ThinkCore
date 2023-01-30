@@ -53,7 +53,7 @@ abstract class Helper
         $this->app = $app;
         $this->class = $class;
         // 计算指定输出格式
-        $output = $app->request->request('output', 'default');
+        $output = $app->request->request('output', 'json');//default
         $method = $app->request->method() ?: ($app->request->isCli() ? 'cli' : 'nil');
         $this->output = strtolower("{$method}.{$output}");
     }
