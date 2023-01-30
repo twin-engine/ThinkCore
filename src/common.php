@@ -704,3 +704,27 @@ if (!function_exists('getPointDistance')) {
         return (int)$distance . 'm';
     }
 }
+if (!function_exists('array_iconv')) {
+    /**
+     * UTF-8编码 GBK编码相互转换/(支持数组) *
+     * @param array $str 字符串，支持数组传递
+     * @param string $in_charset 原字符串编码
+     * @param string $out_charset 输出的字符串编码
+     * @return array
+     * */
+    function array_iconv($str, $in_charset = "gbk", $out_charset = "utf-8")
+    {
+        if (is_array($str)) {
+            foreach ($str as $k => $v) {
+                $str[$k] = array_iconv($v);
+            }
+            return $str;
+        } else {
+            if (is_string($str)) { //return iconv('UTF-8', 'GBK//IGNORE', $str);
+                return mb_convert_encoding($str, $out_charset, $in_charset);
+            } else {
+                return $str;
+            }
+        }
+    }
+}
