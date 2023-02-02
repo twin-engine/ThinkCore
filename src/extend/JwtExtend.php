@@ -157,7 +157,7 @@ class JwtExtend
 
         } catch (\Exception $exception) {
             trace_file($exception);
-            return 'thinkadmin';
+            return 'dualengine';
         }
     }
 
