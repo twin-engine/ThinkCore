@@ -133,6 +133,49 @@ class JwtExtend
     }
 
     /**
+     * 使用refresh token换取新的token
+     * @param string $refresh_token
+     * @param string|null $jwtkey
+     * @return string
+     * @throws Exception
+     */
+    public function getNewToken(string $refresh_token, ?string $jwtkey = null):string
+    {
+        $payload = self::verifyToken($refresh_token, static::jwtkey($jwtkey));
+        $new_token = self::getToken($payload, static::jwtkey($jwtkey));
+        return $new_token;
+    }
+
+    /**
+     * 同时生成token和refresh_token
+     * @param array $payload
+     * @param string|null $jwtkey
+     * @return array
+     */
+    public function authorizations(array $payload, ?string $jwtkey = null):array
+    {
+        $access_token = $payload;
+        $access_token['scopes'] = 'role_access';  // token标识，请求接口的token
+        $access_token['iat'] = time(); //签发时间
+        $access_token['exp'] = time() + 7200; // access_token过期时间,这里设置2个小时
+        $access_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
+
+        $refresh_token = $payload;
+        $refresh_token['scopes'] = 'role_refresh';  // token标识，刷新access_token
+        $refresh_token['iat'] = time(); //签发时间
+        $refresh_token['exp'] = time() + (86400 * 30); // refresh_token过期时间,这里设置30天
+        $refresh_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
+
+        $tokenList = [
+            'access_token' => self::getToken($access_token, static::jwtkey($jwtkey)),
+            'refresh_token' => self::getToken($refresh_token, static::jwtkey($jwtkey)),
+            'token_type' => 'bearer'  // token_type：表示令牌类型，该值大小写不敏感，这里用bearer
+        ];
+
+        return $tokenList;
+    }
+
+    /**
      * 获取 JWT 密钥
      * @param ?string $jwtkey
      * @return string
