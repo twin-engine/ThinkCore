@@ -139,7 +139,7 @@ class JwtExtend
      * @return string
      * @throws Exception
      */
-    public function getNewToken(string $refresh_token, ?string $jwtkey = null):string
+    public static function getNewToken(string $refresh_token, ?string $jwtkey = null):string
     {
         $payload = self::verifyToken($refresh_token, static::jwtkey($jwtkey));
         $new_token = self::getToken($payload, static::jwtkey($jwtkey));
@@ -152,7 +152,7 @@ class JwtExtend
      * @param string|null $jwtkey
      * @return array
      */
-    public function authorizations(array $payload, ?string $jwtkey = null):array
+    public static function authorizations(array $payload, ?string $jwtkey = null):array
     {
         $access_token = $payload;
         $access_token['scopes'] = 'role_access';  // token标识，请求接口的token
