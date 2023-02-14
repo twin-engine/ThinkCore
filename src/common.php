@@ -95,7 +95,7 @@ if (!function_exists('encode')) {
      */
     function encode(string $content): string
     {
-        [$chars, $length] = ['', strlen($string = iconv('UTF-8', 'GBK//TRANSLIT', $content))];
+        [$chars, $length] = ['', strlen($string = CodeExtend::text2utf8($content))];
         for ($i = 0; $i < $length; $i++) $chars .= str_pad(base_convert(strval(ord($string[$i])), 10, 36), 2, '0', 0);
         return $chars;
     }
@@ -433,8 +433,10 @@ if (!function_exists('format_datetime')) {
             return '-';
         } elseif (is_numeric($datetime)) {
             return date(lang($format), intval($datetime));
-        } else {
+        }elseif (strtotime($datetime)) {
             return date(lang($format), strtotime($datetime));
+        }else{
+            return $datetime;
         }
     }
 }

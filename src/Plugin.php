@@ -133,11 +133,11 @@ abstract class Plugin extends Service
     private static function add(string $name, string $path, string $copy = '', string $alias = '', string $space = '', string $package = '', string $service = ''): void
     {
         if (is_dir($path)) {
-            $root = $space ?: NodeService::space($name);
-            $path = realpath($path) . DIRECTORY_SEPARATOR;
-            $copy = ($copy && is_dir($copy) ? realpath($copy) : dirname($path) . DIRECTORY_SEPARATOR . 'stc') . DIRECTORY_SEPARATOR;
+            $DS = DIRECTORY_SEPARATOR;
+            [$path, $space] = [realpath($path) . $DS, $space ?: NodeService::space($name)];
+            $copy = ($copy ? (is_dir($copy) ? realpath($copy) : strtr($copy, ['/' => $DS, '\\' => $DS])) : dirname($path) . $DS . 'stc') . $DS;
             // 写入插件参数信息
-            self::$addons[$name] = ['path' => $path, 'copy' => $copy, 'alias' => $alias, 'space' => $root, 'package' => $package, 'service' => $service];
+            self::$addons[$name] = ['path' => $path, 'copy' => $copy, 'alias' => $alias, 'space' => $space, 'package' => $package, 'service' => $service];
             // 插件别名动态设置
             if (strlen($alias) > 0 && $alias !== $name) Library::$sapp->config->set([
                 'app_map' => array_merge(Library::$sapp->config->get('app.app_map', []), [$alias => $name]),
