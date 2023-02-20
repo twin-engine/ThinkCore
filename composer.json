@@ -17,7 +17,7 @@
         "phpmailer/phpmailer": "^6.7",
         "fastknife/ajcaptcha": "^1.1"
     },
-    "license": "MIT",
+    "license": "Apache-2.0",
     "autoload": {
         "files": [
             "src/common.php"
