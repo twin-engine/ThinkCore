@@ -42,8 +42,8 @@ class ZtSmsService extends Service
      */
     protected function initialize()
     {
-        $this->username = sysconf('ztsms.username') ?: '';
-        $this->password = sysconf('ztsms.password') ?: '';
+        $this->username = sysconf('ztsms.username|raw') ?: '';
+        $this->password = sysconf('ztsms.password|raw') ?: '';
     }
 
     /**
@@ -100,7 +100,7 @@ class ZtSmsService extends Service
         $code = (string)rand(100000, 999999);
         $this->app->cache->set($ckey, ['code' => $code, 'time' => $time], 600);
         // 尝试发送短信内容
-        $content = sysconf($template) ?: '您的验证码为{code}，请在十分钟内完成操作！';
+        $content = sysconf("{$template}|raw") ?: '您的验证码为{code}，请在十分钟内完成操作！';
         
         [$state] = $this->timeSend($phone, str_replace('{code}', $code, $content));
         if ($state) {

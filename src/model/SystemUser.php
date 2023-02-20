@@ -66,7 +66,7 @@ class SystemUser extends Model
     public function getHeadimgAttr($value): string
     {
         if (empty($value)) try {
-            $host = sysconf('base.site_host') ?: 'http://deadmin.cn';
+            $host = sysconf('base.site_host|raw') ?: 'http://deadmin.cn';
             return "{$host}/static/theme/img/headimg.png";
         } catch (\Exception $exception) {
             return "http://deadmin.cn/static/theme/img/headimg.png";

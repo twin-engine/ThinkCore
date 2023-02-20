@@ -92,7 +92,7 @@ class AdminService extends Service
      */
     public static function getUserData(?string $field = null, $default = null)
     {
-        $data = SystemService::getData('UserData_' . static::getUserId(), []);
+        $data = SystemService::getData('UserData_' . static::getUserId());
         return is_null($field) ? $data : ($data[$field] ?? $default);
     }
 
@@ -120,7 +120,7 @@ class AdminService extends Service
      */
     public static function getUserTheme(): string
     {
-        $default = sysconf('base.site_theme') ?: 'default';
+        $default = sysconf('base.site_theme|raw') ?: 'default';
         return static::getUserData('site_theme', $default);
     }
 

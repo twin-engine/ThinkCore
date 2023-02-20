@@ -3,7 +3,7 @@
 namespace think\admin\support\command;
 
 use think\admin\Command;
-use think\admin\Plugin;
+use think\admin\extend\ToolsExtend;
 use think\admin\service\ModuleService;
 use think\console\Input;
 use think\console\input\Option;
@@ -25,6 +25,7 @@ class Publish extends Command
     {
         $this->setName('xadmin:publish');
         $this->addOption('force', 'f', Option::VALUE_NONE, 'Overwrite any existing files');
+        $this->addOption('migrate', 'm', Option::VALUE_NONE, 'Execute phinx database script');
         $this->setDescription('Publish Plugs and Config Assets for ThinkAdmin');
     }
 
@@ -45,13 +46,38 @@ class Publish extends Command
      */
     private function plugin(): Publish
     {
+        // 执行子应用安装
         $force = boolval($this->input->getOption('force'));
-        foreach (Plugin::all() as $plugin) {
-            ModuleService::copy($plugin['copy'], $force);
+        foreach (ModuleService::getModules() as $appName) {
+            $appPath = $this->app->getBasePath() . $appName;
+            is_dir($appPath) && $this->copy($appPath, $force);
         }
         // 执行数据库脚本
-        $this->app->console->call('migrate:run', [], 'console');
+        if ($this->input->getOption('migrate')) {
+            $this->app->console->call('migrate:run', [], 'console');
+        }
         return $this;
+    }
+
+    /**
+     * 初始化组件文件
+     * @param string $copy 应用资源目录
+     * @param boolean $force 是否强制替换
+     * @return void
+     */
+    private function copy(string $copy, bool $force = false)
+    {
+        // 复制系统配置文件
+        $frdir = rtrim($copy, '\\/') . DIRECTORY_SEPARATOR . 'config';
+        ToolsExtend::copyfile($frdir, syspath('config'), [], $force, false);
+
+        // 复制静态资料文件
+        $frdir = rtrim($copy, '\\/') . DIRECTORY_SEPARATOR . 'public';
+        ToolsExtend::copyfile($frdir, syspath('public'), [], true, false);
+
+        // 复制数据库脚本
+        $frdir = rtrim($copy, '\\/') . DIRECTORY_SEPARATOR . 'database';
+        ToolsExtend::copyfile($frdir, syspath('database/migrations'), [], $force, false);
     }
 
     /**
@@ -64,10 +90,24 @@ class Publish extends Command
         if (file_exists($file = syspath('vendor/composer/installed.json'))) {
             $packages = json_decode(@file_get_contents($file), true);
             foreach ($packages['packages'] ?? $packages as $package) {
-                $versions[$package['name']] = $package['version'];
+                // 生成组件版本
+                $config = $package['extra']['config'] ?? [];
+                $versions[$package['name']] = [
+                    'name'        => $config['name'] ?? ($package['name'] ?? ''),
+                    'icon'        => $config['icon'] ?? ($package['cover'] ?? ''),
+                    'cover'       => $config['cover'] ?? ($package['cover'] ?? ''),
+                    'license'     => $package['license'] ?? [],
+                    'version'     => $config['version'] ?? ($package['version'] ?? ''),
+                    'homepage'    => $config['homepage'] ?? ($package['homepage'] ?? ''),
+                    'document'    => $config['document'] ?? ($package['document'] ?? ''),
+                    'platforms'   => $config['platforms'] ?? ($package['platforms'] ?? []),
+                    'description' => $config['description'] ?? ($package['description'] ?? ''),
+                ];
+                // 生成服务配置
                 if (!empty($package['extra']['think']['services'])) {
                     $services = array_merge($services, (array)$package['extra']['think']['services']);
                 }
+                // 复制配置文件
                 if (!empty($package['extra']['think']['config'])) {
                     $configPath = $this->app->getConfigPath();
                     $installPath = syspath("vendor/{$package['name']}/");
@@ -91,7 +131,7 @@ class Publish extends Command
         $content = '<?php' . PHP_EOL . $header . PHP_EOL . 'return ' . var_export($services, true) . ';';
         file_put_contents(syspath('vendor/services.php'), $content);
 
-        // 写入版本配置
+        // 写入组件版本
         $content = '<?php' . PHP_EOL . $header . PHP_EOL . 'return ' . var_export($versions, true) . ';';
         file_put_contents(syspath('vendor/versions.php'), $content);
 

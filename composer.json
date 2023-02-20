@@ -3,7 +3,7 @@
     "description": "ThinkCore",
     "type": "library",
     "require": {
-        "php": "^7.1|^8.0",
+        "php": ">=7.1",
         "ext-gd": "*",
         "ext-curl": "*",
         "ext-json": "*",
