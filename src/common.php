@@ -440,6 +440,28 @@ if (!function_exists('format_datetime')) {
         }
     }
 }
+if (!function_exists('seacharr_by_value')) {
+    /**
+     * 根据二维数组某个字段的值查找数组
+     * @param $array
+     * @param $index
+     * @param $value
+     * @return array
+     */
+    function seacharr_by_value($array, $index, $value)
+    {
+        $newarray = [];
+        if(is_array($array) && count($array)>0) {
+            foreach(array_keys($array) as $key){
+                $temp[$key] = $array[$key][$index];
+                if ($temp[$key] == $value){
+                    $newarray[$key] = $array[$key];
+                }
+            }
+        }
+        return $newarray;
+    }
+}
 if (!function_exists('desensitize')) {
     /**
      * 信息脱敏函数
