@@ -10,8 +10,11 @@ use think\admin\Library;
 use think\admin\model\SystemAuth;
 use think\admin\model\SystemNode;
 use think\admin\model\SystemUser;
+use think\admin\model\SysUserRole;
+use think\admin\model\SysMenu;
 use think\admin\model\SystemUserToken;
 use think\admin\Service;
+use think\admin\extend\JwtExtend;
 use think\helper\Str;
 
 /**
@@ -66,6 +69,36 @@ class AdminService extends Service
             }
         }else{
             return 0;
+        }
+    }
+
+    /**
+     * 获取后台用户ID:Jwt方式
+     * 修改用户ID获取方法（前后端分离）
+     * @return integer
+     */
+    public static function getJwtUserId(): int
+    {
+        $token = Library::$sapp->request->header('Jwt-Token');
+        if($token) $payloadData = JwtExtend::verifyToken($token);
+        if($payloadData){
+            Library::$sapp->session->set('user', $payloadData['data']);
+            return $payloadData['data']['user_id'];
+        }
+        return 0;
+    }
+
+    /**
+     * 获取后台用户名称(Jwt)
+     * 修改用户名获取方法（前后端分离）
+     * @return string
+     */
+    public static function getJwtUserName(): string
+    {
+        if(static::getUserId()>0){
+            return Library::$sapp->session->get('user.username', '');
+        }else{
+            return '';
         }
     }
 
@@ -204,9 +237,32 @@ class AdminService extends Service
         if ($force) static::clear();
         if (($uuid = static::getUserId()) <= 0) return [];
         $user = SystemUser::mk()->where(['id' => $uuid])->findOrEmpty()->toArray();
-        if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {
-            $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');
-            if (!empty($aids)) $nodes = SystemNode::mk()->distinct()->whereIn('auth', $aids)->column('node');
+        if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {//$user['authorize']权限组sys_role表获取
+            $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');//sys_user_role表
+            if (!empty($aids)) $nodes = SystemNode::mk()->distinct()->whereIn('auth', $aids)->column('node');//具体权限需把:替换成/
+        }
+        $user['nodes'] = $nodes ?? [];
+        Library::$sapp->session->set('user', $user);
+        return $user;
+    }
+
+    /**
+     * 初始化用户权限(前后端分离）需在用户登录时刷新权限2023/2/24
+     * @param boolean $force 强刷权限
+     * @return array
+     */
+    public static function apiApply(bool $force = false): array
+    {
+        if ($force) static::clear();
+        if (($uuid = static::getUserId()) <= 0) return [];
+        $aids = SysUserRole::mk()->whereIn('user_id', $uuid)->column('role_id');
+        if (!static::isSuper() && count($aids) > 0) {
+            $nodes = SysMenu::mk()->where(['status'=>0,'type'=>2])->whereIn('id', $aids)->column('permission');
+        }
+        if(!empty($nodes)){
+            foreach($nodes as $key=>&$v){
+                $v = str_replace(':','/',$v);
+            }
         }
         $user['nodes'] = $nodes ?? [];
         Library::$sapp->session->set('user', $user);
