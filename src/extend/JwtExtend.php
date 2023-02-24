@@ -156,12 +156,14 @@ class JwtExtend
     {
         $access_token = $payload;
         $access_token['scopes'] = 'role_access';  // token标识，请求接口的token
+        $access_token['iss'] = 'jwt_admin';
         $access_token['iat'] = time(); //签发时间
         $access_token['exp'] = time() + 7200; // access_token过期时间,这里设置2个小时
         $access_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
 
         $refresh_token = $payload;
         $refresh_token['scopes'] = 'role_refresh';  // token标识，刷新access_token
+        $refresh_token['iss'] = 'jwt_admin';
         $refresh_token['iat'] = time(); //签发时间
         $refresh_token['exp'] = time() + (86400 * 30); // refresh_token过期时间,这里设置30天
         $refresh_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
