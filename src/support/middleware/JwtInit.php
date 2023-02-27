@@ -84,12 +84,9 @@ class JwtInit
         $this->session->init();
         $request->withSession($this->session);
 
-        // 当前是否为 Jwt 会话
-        $isJwtSession = JwtExtend::isJwtSession();
-
-        if (JwtExtend::$isJwt) {
+        if (JwtExtend::$isjwt) {
             // 检查并验证 Jwt 会话
-            if (!$isJwtSession) {
+            if (!JwtExtend::isJwtMode()) {
                 $this->session->destroy();
                 throw new HttpResponseException(json([
                     'code' => 401, 'info' => lang('会话无效或已失效！')
@@ -97,11 +94,9 @@ class JwtInit
             }
         } else {
             // 非 Jwt 请求禁止使用 Jwt 会话
-            if ($isJwtSession) {
-                throw new HttpResponseException(json([
-                    'code' => 0, 'info' => lang('请使用JWT方式访问！')
-                ]));
-            }
+            if (JwtExtend::isJwtMode()) throw new HttpResponseException(json([
+                'code' => 0, 'info' => lang('请使用JWT方式访问！')
+            ]));
             // 非 Jwt 请求需写入 Cookie 记录 SessionID
             $this->app->cookie->set($this->session->getName(), $this->session->getId());
         }
@@ -117,5 +112,6 @@ class JwtInit
     public function end()
     {
         $this->session->save();
+        JwtExtend::$isjwt = false;
     }
 }

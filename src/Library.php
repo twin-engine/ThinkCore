@@ -8,7 +8,6 @@ use Closure;
 use think\admin\service\AdminService;
 use think\admin\service\RuntimeService;
 use think\admin\support\command\Database;
-use think\admin\support\command\Install;
 use think\admin\support\command\Package;
 use think\admin\support\command\Publish;
 use think\admin\support\command\Queue;
@@ -31,7 +30,7 @@ class Library extends Service
     /**
      * 组件版本号
      */
-    const VERSION = '6.1.6';
+    const VERSION = '6.1.16';
 
     /**
      * 静态应用实例
@@ -53,7 +52,6 @@ class Library extends Service
             Package::class,
             Sysmenu::class,
             Publish::class,
-            Install::class,
             Replace::class,
             Database::class,
         ]);

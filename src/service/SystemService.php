@@ -249,7 +249,7 @@ class SystemService extends Service
      * @param array $tables 现有表集合
      * @param boolean $copy 是否复制
      * @param mixed $where 复制条件
-     * @throws \think\admin\Exception
+     * @throws \think\db\exception\DbException
      */
     public static function copyTableStruct(string $from, string $create, array $tables = [], bool $copy = false, $where = [])
     {

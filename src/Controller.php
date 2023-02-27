@@ -117,7 +117,7 @@ class Controller extends stdClass
     {
         if ($data === '{-null-}') $data = new stdClass();
         $result = ['success' => $success, 'code' => $code, 'message' => $info, 'data' => $data];
-        if (JwtExtend::getOutToken()) {
+        if (JwtExtend::isRejwt()) {
             $result['token'] = JwtExtend::getToken(JwtExtend::getOutData());
         }
         throw new HttpResponseException(json($result));
@@ -141,7 +141,7 @@ class Controller extends stdClass
      */
     public function fetch(string $tpl = '', array $vars = [], ?string $node = null): void
     {
-        if (JwtExtend::$isJwt) {
+        if (JwtExtend::$isjwt) {
             JwtExtend::fetch($this, $vars);
         } else {
             foreach ($this as $name => $value) {
