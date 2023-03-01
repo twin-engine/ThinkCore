@@ -314,7 +314,7 @@ class QueryHelper extends Helper
 
     /**
      * 权限处理｜数据隔离
-     * 新增按租户进行数据隔离 2022/4/11 by rotoos
+     * 新增按租户进行数据隔离
      * $param array|string|null $input
      * @retrun array
      */
@@ -323,7 +323,9 @@ class QueryHelper extends Helper
         if(!empty($input['tenant_id'])){
             return $input;
         }else{
-            $input['tenant_id'] = $this->app->request->header('TenantId');
+            $input['tenant_id'] = $this->app->request->request('tenant_id');
+            $input['tenant_id'] = $input['tenant_id'] ?: $this->app->request->request('tenantId');
+            $input['tenant_id'] = $input['tenant_id'] ?: $this->app->request->header('TenantId');
             return $input;
         }
     }
