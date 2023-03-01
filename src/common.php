@@ -12,9 +12,7 @@ use think\admin\service\QueueService;
 use think\admin\service\RuntimeService;
 use think\admin\service\SystemService;
 use think\admin\Storage;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
+use think\helper\Str;
 use think\db\Query;
 use think\Model;
 
@@ -82,7 +80,17 @@ if (!function_exists('sysuri')) {
      */
     function sysuri(string $url = '', array $vars = [], $suffix = true, $domain = false): string
     {
-        return SystemService::sysuri($url, $vars, $suffix, $domain);
+        if (preg_match('#^(https?://|\\|/|@)#', $url)) {
+            return Library::$sapp->route->buildUrl($url, $vars)->suffix($suffix)->domain($domain)->build();
+        }
+        if (count($attr = $url === '' ? [] : explode('/', rtrim($url, '/'))) < 3) {
+            $map = [Library::$sapp->http->getName(), Library::$sapp->request->controller(true), Library::$sapp->request->action(true)];
+            while (count($attr) < 3) array_unshift($attr, $map[2 - count($attr)] ?? 'index');
+        }
+        [$rcf, $tmp] = [Library::$sapp->config->get('route', []), uniqid('think_admin_replace_temp_vars_')];
+        $map = [Str::lower($rcf['default_app'] ?? ''), Str::snake($rcf['default_controller'] ?? ''), Str::lower($rcf['default_action'] ?? '')];
+        for ($idx = count($attr) - 1; $idx >= 0; $idx--) if ($attr[$idx] == ($map[$idx] ?: 'index')) $attr[$idx] = $tmp; else break;
+        return preg_replace("#/{$tmp}#", '', Library::$sapp->route->buildUrl(join('/', $attr), $vars)->suffix(false)->domain($domain)->build()) ?: '/';
     }
 }
 
@@ -180,10 +188,10 @@ if (!function_exists('sysconf')) {
      * 获取或配置系统参数
      * @param string $name 参数名称
      * @param mixed $value 参数内容
-     * @return mixed
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @return array|int|mixed|string
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     function sysconf(string $name = '', $value = null)
     {
@@ -200,9 +208,9 @@ if (!function_exists('syconfig')) {
      * @param string $groupCode 常量的分类名称
      * @param string $code 参数名称
      * @return mixed
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     function syconfig(string $groupCode = '', string $code = '')
     {
@@ -215,9 +223,9 @@ if (!function_exists('sysdata')) {
      * @param string $name 数据名称
      * @param mixed $value 数据内容
      * @return mixed
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     function sysdata(string $name, $value = null)
     {
@@ -245,7 +253,7 @@ if (!function_exists('syspath')) {
 if (!function_exists('sysoplog')) {
     /**
      * 写入系统日志
-     * 新增指定操作用户名参数 2022/4/11 by rotoos
+     * 新增指定操作用户名参数
      * @param string $username 操作用户名
      * @param string $action 日志行为
      * @param string $content 日志内容
@@ -277,9 +285,9 @@ if (!function_exists('sysqueue')) {
      * @param integer $loops 循环等待时间
      * @return string
      * @throws \think\admin\Exception
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     function sysqueue(string $title, string $command, int $later = 0, array $data = [], int $rscript = 1, int $loops = 0): string
     {
@@ -357,9 +365,9 @@ if (!function_exists('data_save')) {
      * @param string $key 条件主键限制
      * @param mixed $where 其它的where条件
      * @return boolean|integer
-     * @throws DataNotFoundException
-     * @throws DbException
-     * @throws ModelNotFoundException
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     function data_save($dbQuery, array $data, string $key = 'id', $where = [])
     {
