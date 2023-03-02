@@ -149,19 +149,19 @@ class JwtExtend
         $access_token['iss'] = 'jwt_admin';
         $access_token['iat'] = time(); //签发时间
         $access_token['exp'] = time() + 7200; // access_token过期时间,这里设置2个小时
-        $access_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
+        $access_token['nbf'] = time();  // 该时间之前不接收处理该Token  + 60
 
         $refresh_token = $payload;
         $refresh_token['scopes'] = 'role_refresh';  // token标识，刷新access_token
         $refresh_token['iss'] = 'jwt_admin';
         $refresh_token['iat'] = time(); //签发时间
         $refresh_token['exp'] = time() + (86400 * 30); // refresh_token过期时间,这里设置30天
-        $refresh_token['nbf'] = time() + 60;  // 该时间之前不接收处理该Token
+        $refresh_token['nbf'] = time();  // 该时间之前不接收处理该Token  + 60
 
         $tokenList = [
             'access_token' => self::getToken($access_token, static::jwtkey($jwtkey)),
             'refresh_token' => self::getToken($refresh_token, static::jwtkey($jwtkey)),
-            'token_type' => 'bearer'  // token_type：表示令牌类型，该值大小写不敏感，这里用bearer
+            //'token_type' => 'bearer'  // token_type：表示令牌类型，该值大小写不敏感，这里用bearer
         ];
 
         return $tokenList;

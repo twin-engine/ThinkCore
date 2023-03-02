@@ -30,7 +30,7 @@ class AdminService extends Service
      */
     public static function isLogin(): bool
     {
-        return static::getUserId() > 0;
+        return (static::getUserId() || static::getJwtUserId()) > 0;
     }
 
     /**
@@ -39,7 +39,7 @@ class AdminService extends Service
      */
     public static function isSuper(): bool
     {
-        return static::getUserName() === static::getSuperName();
+        return (static::getUserName() || static::getJwtUserName()) === static::getSuperName();
     }
 
     /**
@@ -83,7 +83,7 @@ class AdminService extends Service
         if($token) $payloadData = JwtExtend::verifyToken($token);
         if($payloadData){
             Library::$sapp->session->set('user', $payloadData['data']);
-            return $payloadData['data']['user_id'];
+            return $payloadData['data']['id'];
         }
         return 0;
     }

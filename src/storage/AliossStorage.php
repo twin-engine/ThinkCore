@@ -4,6 +4,8 @@ declare (strict_types=1);
 
 namespace think\admin\storage;
 
+use think\admin\contract\StorageInterface;
+use think\admin\contract\StorageUsageTrait;
 use think\admin\Exception;
 use think\admin\extend\HttpExtend;
 use think\admin\Storage;
@@ -13,8 +15,10 @@ use think\admin\Storage;
  * Class AliossStorage
  * @package think\admin\storage
  */
-class AliossStorage extends Storage
+class AliossStorage implements StorageInterface
 {
+    use StorageUsageTrait;
+
     /**
      * 数据中心
      * @var string
@@ -46,7 +50,7 @@ class AliossStorage extends Storage
      * @throws \think\db\exception\DbException
      * @throws \think\db\exception\ModelNotFoundException
      */
-    protected function initialize()
+    protected function init()
     {
         // 读取配置文件
         $this->point = sysconf('storage.alioss_point|raw');
@@ -70,7 +74,7 @@ class AliossStorage extends Storage
      * @param string $name 文件名称
      * @param string $file 文件内容
      * @param boolean $safe 安全模式
-     * @param null|string $attname 下载名称
+     * @param ?string $attname 下载名称
      * @return array
      */
     public function set(string $name, string $file, bool $safe = false, ?string $attname = null): array
@@ -93,18 +97,18 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 根据文件名读取文件内容
+     * 读取文件内容
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
      * @return string
      */
     public function get(string $name, bool $safe = false): string
     {
-        return static::curlGet($this->url($name, $safe));
+        return Storage::curlGet($this->url($name, $safe));
     }
 
     /**
-     * 删除存储的文件
+     * 删除存储文件
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
      * @return boolean
@@ -119,7 +123,7 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 判断文件是否存在
+     * 判断是否存在
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
      * @return boolean
@@ -134,10 +138,10 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 获取文件当前URL地址
+     * 获取访问地址
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
-     * @param null|string $attname 下载名称
+     * @param ?string $attname 下载名称
      * @return string
      */
     public function url(string $name, bool $safe = false, ?string $attname = null): string
@@ -146,7 +150,7 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 获取文件存储路径
+     * 获取存储路径
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
      * @return string
@@ -157,10 +161,10 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 获取文件存储信息
+     * 获取文件信息
      * @param string $name 文件名称
      * @param boolean $safe 安全模式
-     * @param null|string $attname 下载名称
+     * @param ?string $attname 下载名称
      * @return array
      */
     public function info(string $name, bool $safe = false, ?string $attname = null): array
@@ -172,7 +176,7 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 获取文件上传地址
+     * 获取上传地址
      * @return string
      */
     public function upload(): string
@@ -182,10 +186,10 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 获取文件上传令牌
+     * 获取上传令牌
      * @param string $name 文件名称
      * @param integer $expires 有效时间
-     * @param null|string $attname 下载名称
+     * @param ?string $attname 下载名称
      * @return array
      */
     public function buildUploadToken(string $name, int $expires = 3600, ?string $attname = null): array
@@ -203,7 +207,7 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 操作请求头信息签名
+     * 请求数据签名
      * @param string $method 请求方式
      * @param string $soruce 资源名称
      * @return array
@@ -231,7 +235,7 @@ class AliossStorage extends Storage
     }
 
     /**
-     * 阿里云OSS存储区域
+     * 获取存储区域
      * @return array
      */
     public static function region(): array
