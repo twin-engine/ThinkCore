@@ -30,7 +30,7 @@ class AdminService extends Service
      */
     public static function isLogin(): bool
     {
-        return (static::getUserId() || static::getJwtUserId()) > 0;
+        return static::getJwtUserId() > 0;
     }
 
     /**
@@ -39,7 +39,7 @@ class AdminService extends Service
      */
     public static function isSuper(): bool
     {
-        return (static::getUserName() || static::getJwtUserName()) === static::getSuperName();
+        return static::getJwtUserName() === static::getSuperName();
     }
 
     /**
@@ -95,7 +95,7 @@ class AdminService extends Service
      */
     public static function getJwtUserName(): string
     {
-        if(static::getUserId()>0){
+        if(static::getJwtUserId()>0){
             return Library::$sapp->session->get('user.username', '');
         }else{
             return '';
@@ -125,7 +125,7 @@ class AdminService extends Service
      */
     public static function getUserData(?string $field = null, $default = null)
     {
-        $data = SystemService::getData('UserData_' . static::getUserId());
+        $data = SystemService::getData('UserData_' . static::getJwtUserId());
         return is_null($field) ? $data : ($data[$field] ?? $default);
     }
 
@@ -141,7 +141,7 @@ class AdminService extends Service
     public static function setUserData(array $data, bool $replace = false)
     {
         $data = $replace ? $data : array_merge(static::getUserData(), $data);
-        return SystemService::setData('UserData_' . static::getUserId(), $data);
+        return SystemService::setData('UserData_' . static::getJwtUserId(), $data);
     }
 
     /**
@@ -238,7 +238,7 @@ class AdminService extends Service
     public static function apply(bool $force = false): array
     {
         if ($force) static::clear();
-        if (($uuid = static::getUserId()) <= 0) return [];
+        if (($uuid = static::getJwtUserId()) <= 0) return [];
         $user = SystemUser::mk()->where(['id' => $uuid])->findOrEmpty()->toArray();
         if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {//$user['authorize']权限组sys_role表获取
             $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');//sys_user_role表
@@ -257,7 +257,7 @@ class AdminService extends Service
     public static function apiApply(bool $force = false): array
     {
         if ($force) static::clear();
-        if (($uuid = static::getUserId()) <= 0) return [];
+        if (($uuid = static::getJwtUserId()) <= 0) return [];
         $aids = SysUserRole::mk()->whereIn('user_id', $uuid)->column('role_id');
         if (!static::isSuper() && count($aids) > 0) {
             $nodes = SysMenu::mk()->where(['status'=>0,'type'=>2])->whereIn('id', $aids)->column('permission');
