@@ -81,7 +81,7 @@ class AdminService extends Service
     {
         $token = Library::$sapp->request->header('Jwt-Token');
         if($token) $payloadData = JwtExtend::verifyToken($token);
-        if($payloadData){
+        if(!empty($payloadData)){
             Library::$sapp->session->set('user', $payloadData['data']);
             return $payloadData['data']['id'];
         }
