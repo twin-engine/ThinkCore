@@ -12,6 +12,7 @@ use think\admin\model\SystemNode;
 use think\admin\model\SystemUser;
 use think\admin\model\SysUserRole;
 use think\admin\model\SysMenu;
+use think\admin\model\SysRoleMenu;
 use think\admin\model\SystemUserToken;
 use think\admin\Service;
 use think\admin\extend\JwtExtend;
@@ -200,7 +201,7 @@ class AdminService extends Service
         if (empty($methods[$current]['isauth'])) {
             return !(!empty($methods[$current]['islogin']) && !static::isLogin());
         } else {
-            return in_array($current, Library::$sapp->session->get('user.nodes', []));
+            return in_array($current, Library::$sapp->session->get('nodes', []));//'user.nodes'
         }
     }
 
@@ -258,17 +259,20 @@ class AdminService extends Service
     {
         if ($force) static::clear();
         if (($uuid = static::getJwtUserId()) <= 0) return [];
+        $user = SystemUser::mk()->where(['id' => $uuid])->findOrEmpty()->toArray();
         $aids = SysUserRole::mk()->whereIn('user_id', $uuid)->column('role_id');
-        if (!static::isSuper() && count($aids) > 0) {
-            $nodes = SysMenu::mk()->where(['status'=>0,'type'=>2])->whereIn('id', $aids)->column('permission');
+        $menu_ids = SysRoleMenu::mk()->whereIn('role_id',$aids)->column('menu_id');
+        if (!static::isSuper() && count($menu_ids) > 0) {
+            $nodes = SysMenu::mk()->where(['status'=>0,'type'=>2])->whereIn('id', $menu_ids)->column('permission');
         }
         if(!empty($nodes)){
             foreach($nodes as $key=>&$v){
                 $v = str_replace(':','/',$v);
             }
         }
-        $user['nodes'] = $nodes ?? [];
         Library::$sapp->session->set('user', $user);
+        $nodes = $nodes ?? [];
+        Library::$sapp->session->set('nodes', $nodes);
         return $user;
     }
 

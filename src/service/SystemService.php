@@ -140,7 +140,7 @@ class SystemService extends Service
     }
 
     /**
-     * 读取系统配置数据
+     * 读取系统配置数据（ant design）
      * @param string $groupCode
      * @param string $code
      * @return array|mixed|string
@@ -159,7 +159,7 @@ class SystemService extends Service
                 return $default=trim($value);
             }
         } catch (\Exception $exception) {
-            trace_file($exception);
+            //trace_file($exception);
             return $default;
         }
     }

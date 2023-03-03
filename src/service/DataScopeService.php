@@ -3,6 +3,7 @@ declare (strict_types=1);
 
 namespace think\admin\service;
 
+use think\admin\Library;
 use think\admin\model\SystemUserToken;
 use think\admin\model\SysUserRole;
 use think\admin\model\SysRoleDept;
@@ -29,18 +30,10 @@ class DataScopeService extends Service
      */
     public function setDataScope(): array
     {
-        $token = $this->app->request->header('Access-Token');
-        $type = $this->app->request->header('Api-Name');
-        $map = ['type' => $type, 'token' => $token];
-        $user = SystemUserToken::mk()->where($map)->where('time','>=',time())->findOrEmpty();
-        if(empty($user)){
-            return [0, '请重新登录，登录认证无效', 0, 0];
-        }else{
-            $userid = $user['uuid'];
-        }
-        $role_ids = SysUserRole::mk()->where(['user_id' => $userid])->column('role_id');
+        $user = Library::$sapp->session->get('user', []);
+        $role_ids = SysUserRole::mk()->where(['user_id' => $user['id']])->column('role_id');
         $roles = SysRole::mk()->whereIn('id',$role_ids)->select()->toArray();
-        return $this->getDeptUserIdsBy($userid, $roles, $role_ids);
+        return $this->getDeptUserIdsBy($user['id'], $roles, $role_ids);
     }
 
     /**
