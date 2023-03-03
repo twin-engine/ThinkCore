@@ -12,6 +12,9 @@ use think\admin\model\SystemConfig;
 use think\admin\model\SystemData;
 use think\admin\model\SystemOplog;
 use think\admin\Service;
+use think\admin\Storage;
+use think\admin\storage\LocalStorage;
+use think\admin\extend\FaviconExtend;
 use think\App;
 use think\db\Query;
 use think\Model;
@@ -333,6 +336,35 @@ class SystemService extends Service
         return $new ? file_put_contents($file, $str) : file_put_contents($file, $str, FILE_APPEND);
     }
 
+    /**
+     * 设置网页标签图标
+     * @param ?string $icon 网页标签图标
+     * @return boolean
+     * @throws \think\admin\Exception
+     */
+    public static function setFavicon(?string $icon = null): bool
+    {
+        try {
+            $icon = $icon ?: sysconf('base.site_icon|raw');
+            if (!preg_match('#^https?://#i', $icon)) {
+                throw new Exception(lang('无效的原文件地址！'));
+            }
+            if (preg_match('#/upload/(\w{2}/\w{30}.\w+)$#i', $icon, $vars)) {
+                $info = LocalStorage::instance()->info($vars[1]);
+            }
+            if (empty($info) || empty($info['file'])) {
+                $info = Storage::down($icon);
+            }
+            if (empty($info) || empty($info['file'])) return false;
+            $favicon = new FaviconExtend($info['file'], [48, 48]);
+            return $favicon->saveIco(syspath('public/favicon.ico'));
+        } catch (Exception $exception) {
+            throw $exception;
+        } catch (\Exception $exception) {
+            trace_file($exception);
+            throw new Exception($exception->getMessage(), $exception->getCode());
+        }
+    }
 
     /**
      * 魔术方法调用(停时)

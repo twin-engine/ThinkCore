@@ -21,7 +21,7 @@ if (!function_exists('p')) {
      * 打印输出数据到文件
      * @param mixed $data 输出的数据
      * @param boolean $new 强制替换文件
-     * @param null|string $file 保存文件名称
+     * @param ?string $file 保存文件名称
      * @return false|int
      */
     function p($data, bool $new = false, ?string $file = null)
@@ -45,7 +45,7 @@ if (!function_exists('m')) {
 if (!function_exists('auth')) {
     /**
      * 访问权限检查
-     * @param null|string $node
+     * @param ?string $node
      * @return boolean
      * @throws ReflectionException
      */
@@ -87,10 +87,15 @@ if (!function_exists('sysuri')) {
             $map = [Library::$sapp->http->getName(), Library::$sapp->request->controller(), Library::$sapp->request->action(true)];
             while (count($attr) < 3) array_unshift($attr, $map[2 - count($attr)] ?? 'index');
         }
+        $attr[1] = Str::snake($attr[1]);
         [$rcf, $tmp] = [Library::$sapp->config->get('route', []), uniqid('think_admin_replace_temp_vars_')];
         $map = [Str::lower($rcf['default_app'] ?? ''), Str::snake($rcf['default_controller'] ?? ''), Str::lower($rcf['default_action'] ?? '')];
         for ($idx = count($attr) - 1; $idx >= 0; $idx--) if ($attr[$idx] == ($map[$idx] ?: 'index')) $attr[$idx] = $tmp; else break;
-        return preg_replace("#/{$tmp}#", '', Library::$sapp->route->buildUrl(join('/', $attr), $vars)->suffix(false)->domain($domain)->build()) ?: '/';
+        $url = Library::$sapp->route->buildUrl(join('/', $attr), $vars)->suffix($suffix)->domain($domain)->build();
+        $ext = is_string($suffix) ? $suffix : ($rcf['url_html_suffix'] ?? 'html');
+        $new = preg_replace("#/{$tmp}(\.{$ext})?#", '', $old = parse_url($url, PHP_URL_PATH) ?: '', -1, $count);
+        $count > 0 && $suffix && $new && $new !== Library::$sapp->request->baseUrl() && $new .= ".{$ext}";
+        return str_replace($old, $new ?: '/', $url);
     }
 }
 
@@ -130,7 +135,7 @@ if (!function_exists('str2arr')) {
      * 字符串转数组
      * @param string $text 待转内容
      * @param string $separ 分隔字符
-     * @param null|array $allow 限定规则
+     * @param ?array $allow 限定规则
      * @return array
      */
     function str2arr(string $text, string $separ = ',', ?array $allow = null): array
@@ -149,7 +154,7 @@ if (!function_exists('arr2str')) {
      * 数组转字符串
      * @param array $data 待转数组
      * @param string $separ 分隔字符
-     * @param null|array $allow 限定规则
+     * @param ?array $allow 限定规则
      * @return string
      */
     function arr2str(array $data, string $separ = ',', ?array $allow = null): string
@@ -456,7 +461,7 @@ if (!function_exists('seacharr_by_value')) {
      * @param $value
      * @return array
      */
-    function seacharr_by_value($array, $index, $value)
+    function seacharr_by_value($array, $index, $value):array
     {
         $newarray = [];
         if(is_array($array) && count($array)>0) {
@@ -473,18 +478,19 @@ if (!function_exists('seacharr_by_value')) {
 if (!function_exists('desensitize')) {
     /**
      * 信息脱敏函数
-     * @param $string 字符串
+     * @param string $string 被替换的字符
      * @param int $start 开始明文长度
      * @param int $end 结束明文长度
      * @param string $re 替换字符
      * @return string
      */
-    function desensitize($string = '', $start = 0, $end = 0, $re = '*')
+    function desensitize(string $string = '', int $start = 0, int $end = 0, string $re = '*'):string
     {
         if (empty($string) || empty($end) || empty($re)) return $string;
         $strLen = strlen($string);
         if ($strLen < ($start + $end)) return $string;
         $strEnd = $strLen - $end;
+        $str_arr = [];
         for ($i = 0; $i < $strLen; $i++) {
             if ($i >= $start && $i < $strEnd)
                 $str_arr[] = $re;
@@ -501,7 +507,7 @@ if (!function_exists('real_ip')) {
      * @access  public
      * @return  string
      */
-    function real_ip()
+    function real_ip():string
     {
         static $realip = NULL;
         if ($realip !== NULL) {
@@ -521,11 +527,7 @@ if (!function_exists('real_ip')) {
             } elseif (isset($_SERVER['HTTP_CLIENT_IP'])) {
                 $realip = $_SERVER['HTTP_CLIENT_IP'];
             } else {
-                if (isset($_SERVER['REMOTE_ADDR'])) {
-                    $realip = $_SERVER['REMOTE_ADDR'];
-                } else {
-                    $realip = '0.0.0.0';
-                }
+                $realip = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
             }
         } else {
             if (getenv('HTTP_X_FORWARDED_FOR')) {
@@ -548,7 +550,7 @@ if (!function_exists('http_post_data')) {
      * @param $data_string
      * @return array
      */
-    function http_post_data($url, $data_string)
+    function http_post_data($url, $data_string):array
     {
         $ch = curl_init();
         curl_setopt($ch, CURLOPT_POST, 1);
@@ -573,7 +575,7 @@ if (!function_exists('getUnixTimestamp')) {
      * 13位时间戳转换
      * @return float
      */
-    function getUnixTimestamp()
+    function getUnixTimestamp():float
     {
         list($s1, $s2) = explode(' ', microtime());
         return (float)sprintf('%.0f', (floatval($s1) + floatval($s2)) * 1000);
@@ -583,11 +585,11 @@ if (!function_exists('getUnixTimestamp')) {
 if (!function_exists('curls')) {
     /**
      * curl请求
-     * @param $url
-     * @param $timeout
+     * @param string $url
+     * @param int $timeout
      * @return bool|string
      */
-    function curls($url, $timeout = '15')
+    function curls(string $url, int $timeout = 15)
     {
         // 1. 初始化
         $ch = curl_init();
@@ -639,10 +641,9 @@ if (!function_exists('get_http_type')) {
      * 获取当前网址协议
      * @return string
      */
-    function get_http_type()
+    function get_http_type():string
     {
-        $http_type = ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) ? 'https://' : 'http://';
-        return $http_type;
+        return ((isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] == 'on') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] == 'https')) ? 'https://' : 'http://';
     }
 }
 if (!function_exists('str2time_date')) {
@@ -664,7 +665,7 @@ if (!function_exists('between_time')) {
      * @param array $times
      * @return array
      */
-    function between_time(array $times)
+    function between_time(array $times):array
     {
         foreach ($times as &$time) {
             $time = trim($time, '&quot;');
@@ -679,10 +680,10 @@ if (!function_exists('returnSquarePoint')) {
      * @param $lng float 经度
      * @param $lat float 纬度
      * @param $distance float 该点所在圆的半径，该圆与此正方形内切，默认值为1千米 10即10公里
-     * @param $radius 地球半径 平均6371km
+     * @param $radius float 地球半径 平均6371km
      * @return array[] 正方形的四个点的经纬度坐标
      */
-    function returnSquarePoint($lng, $lat, $distance = 1, $radius = 6371)
+    function returnSquarePoint(float $lng, float $lat, float $distance = 1, float $radius = 6371):array
     {
         $dlng = 2 * asin(sin($distance / (2 * $radius)) / cos(deg2rad($lat)));
         $dlng = rad2deg($dlng);
@@ -719,7 +720,7 @@ if (!function_exists('getPointDistance')) {
      * @param $lat2 float 纬度2
      * @return string 距离(单位米)
      */
-    function getPointDistance($lng1, $lat1, $lng2, $lat2)
+    function getPointDistance(float $lng1, float $lat1, float $lng2, float $lat2):string
     {
         $earthRadius = 6371; //地球平均半径,km
         //deg2rad()函数将角度转为弧度
@@ -739,12 +740,12 @@ if (!function_exists('getPointDistance')) {
 if (!function_exists('array_iconv')) {
     /**
      * UTF-8编码 GBK编码相互转换/(支持数组) *
-     * @param array $str 字符串，支持数组传递
+     * @param mixed $str 字符串，支持数组传递
      * @param string $in_charset 原字符串编码
      * @param string $out_charset 输出的字符串编码
      * @return array
-     * */
-    function array_iconv($str, $in_charset = "gbk", $out_charset = "utf-8")
+     */
+    function array_iconv($str, string $in_charset = "gbk", string $out_charset = "utf-8"):array
     {
         if (is_array($str)) {
             foreach ($str as $k => $v) {
