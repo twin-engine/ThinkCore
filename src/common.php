@@ -94,7 +94,7 @@ if (!function_exists('sysuri')) {
         $url = Library::$sapp->route->buildUrl(join('/', $attr), $vars)->suffix($suffix)->domain($domain)->build();
         $ext = is_string($suffix) ? $suffix : ($rcf['url_html_suffix'] ?? 'html');
         $new = preg_replace("#/{$tmp}(\.{$ext})?#", '', $old = parse_url($url, PHP_URL_PATH) ?: '', -1, $count);
-        $count > 0 && $suffix && $new && $new !== Library::$sapp->request->baseUrl() && $new .= ".{$ext}";
+        $count > 0 && $suffix && $new && $ext !== '' && $new !== Library::$sapp->request->baseUrl() && $new .= ".{$ext}";
         return str_replace($old, $new ?: '/', $url);
     }
 }

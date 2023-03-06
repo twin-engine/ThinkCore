@@ -1,4 +1,5 @@
 <?php
+
 declare (strict_types=1);
 
 namespace think\admin\helper;
@@ -16,18 +17,18 @@ class DeleteHelper extends Helper
 {
     /**
      * 逻辑器初始化
-     * @param Model|BaseQuery|string $dbQuery
+     * @param BaseQuery|Model|string $dbQuery
      * @param string $field 操作数据主键
      * @param mixed $where 额外更新条件
-     * @return bool|null
+     * @return bool
      * @throws \think\db\exception\DbException
      */
-    public function init($dbQuery, string $field = '', $where = []): ?bool
+    public function init($dbQuery, string $field = '', $where = []): bool
     {
-        $query = $this->buildQuery($dbQuery);
+        $query = static::buildQuery($dbQuery);
         $field = $field ?: ($query->getPk() ?: 'id');
         $value = $this->app->request->post($field);
-        
+
         // 查询限制处理
         if (!empty($where)) $query->where($where);
         if (!isset($where[$field]) && is_string($value)) {
@@ -36,7 +37,7 @@ class DeleteHelper extends Helper
 
         // 前置回调处理
         if (false === $this->class->callback('_delete_filter', $query, $where)) {
-            return null;
+            return false;
         }
 
         // 阻止危险操作
@@ -51,11 +52,11 @@ class DeleteHelper extends Helper
             if (in_array('deleted', $fields)) $data['deleted'] = 1;
             if (in_array('is_deleted', $fields)) $data['is_deleted'] = 1;
             if (isset($data['deleted']) || isset($data['is_deleted'])) {
-                if (in_array('deleted_at', $fields)) $data['deleted_at'] = date('Y-m-d H:i:s',time());
+                if (in_array('deleted_at', $fields)) $data['deleted_at'] = date('Y-m-d H:i:s');
                 if (in_array('deleted_time', $fields)) $data['deleted_time'] = time();
             }
         }
-        
+
         // 执行删除操作
         if ($result = (empty($data) ? $query->delete() : $query->update($data)) !== false) {
             // 模型自定义事件回调

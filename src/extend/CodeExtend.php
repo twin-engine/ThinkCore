@@ -59,15 +59,19 @@ class CodeExtend
     }
 
     /**
-     * 文本转UTF8编码
-     * @param string $content
+     * 文本转码
+     * @param string $text 文本内容
+     * @param string $target 目标编码
      * @return string
      */
-    public static function text2utf8(string $content): string
+    public static function text2utf8(string $text, string $target = 'UTF-8'): string
     {
-        return mb_convert_encoding($content, 'UTF-8', mb_detect_encoding($content, [
-            'ASCII', 'UTF-8', 'GB2312', 'GBK', 'BIG5',
-        ]));
+        [$first2, $first4] = [substr($text, 0, 2), substr($text, 0, 4)];
+        if ($first4 === chr(0x00) . chr(0x00) . chr(0xFE) . chr(0xFF)) $ft = 'UTF-32BE';
+        elseif ($first4 === chr(0xFF) . chr(0xFE) . chr(0x00) . chr(0x00)) $ft = 'UTF-32LE';
+        elseif ($first2 === chr(0xFE) . chr(0xFF)) $ft = 'UTF-16BE';
+        elseif ($first2 === chr(0xFF) . chr(0xFE)) $ft = 'UTF-16LE';
+        return mb_convert_encoding($text, $target, $ft ?? mb_detect_encoding($text));
     }
 
     /**

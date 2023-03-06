@@ -4,6 +4,7 @@ declare (strict_types=1);
 
 namespace think\admin\service;
 
+use Symfony\Component\Process\Process;
 use think\admin\extend\CodeExtend;
 use think\admin\Library;
 use think\admin\Service;
@@ -16,7 +17,7 @@ use think\admin\Service;
 class ProcessService extends Service
 {
     /**
-     * 生成 Think 指令脚本
+     * 生成 Think 脚本
      * @param string $args 指令参数
      * @param boolean $simple 仅返回内容
      * @return string
@@ -28,44 +29,22 @@ class ProcessService extends Service
     }
 
     /**
-     * 生成 Composer 指令脚本
-     * @param string $args 指令参数
-     * @param boolean $simple 仅返回内容
+     * 生成 Composer 脚本
+     * @param string $args 参数
      * @return string
      */
-    public static function composer(string $args = '', bool $simple = false): string
+    public static function composer(string $args = ''): string
     {
-        $root = escapeshellarg(Library::$sapp->getRootPath());
-        if ($simple) return "-d {$root} {$args}";
-        static $comBinary;
-        if (empty($comBinary) && file_exists($file = syspath('vendor/binarys.php')) && is_array($binarys = include($file))) {
-            $comBinary = isset($binarys['com']) && static::isfile($binarys['com']) ? static::getPhpExec() . ' ' . $binarys['com'] : 'composer';
+        static $comExec;
+        if (empty($comExec) && self::isfile($comExec = self::getRunVar('com'))) {
+            $comExec = self::getPhpExec() . ' ' . $comExec;
         }
-        return ($comBinary ?? 'composer') . " -d {$root} {$args}";
+        $root = Library::$sapp->getRootPath();
+        return ($comExec ?: 'composer') . " -d {$root} {$args}";
     }
 
     /**
-     * 获取PHP命令位置
-     * @return string
-     */
-    public static function getPhpExec(): string
-    {
-        static $phpBinary;
-        if (!empty($phpBinary)) return $phpBinary;
-        if (file_exists($file = syspath('vendor/binarys.php')) && is_array($binarys = include($file))) {
-            $phpBinary = isset($binarys['php']) && static::isfile($binarys['php']) ? $binarys['php'] : '';
-        }
-        if (empty($phpBinary)) {
-            $attrs = pathinfo(str_replace('/sbin/php-fpm', '/bin/php', PHP_BINARY));
-            $attrs['filename'] = preg_replace('#-(fcgi|cgi|fpm)$#', '', $attrs['filename']);
-            $attrs['extension'] = empty($attrs['extension']) ? '' : ".{$attrs['extension']}";
-            $phpBinary = $attrs['dirname'] . DIRECTORY_SEPARATOR . $attrs['filename'] . $attrs['extension'];
-        }
-        return $phpBinary = static::isfile($phpBinary) ? $phpBinary : 'php';
-    }
-
-    /**
-     * 检查 Think 运行进程
+     * 检查 Think 进程
      * @param string $args 执行参数
      * @return array
      */
@@ -75,7 +54,7 @@ class ProcessService extends Service
     }
 
     /**
-     * 执行 Think 指令内容
+     * 创建 Think 进程
      * @param string $args 执行参数
      * @param integer $usleep 延时时间
      */
@@ -100,7 +79,7 @@ class ProcessService extends Service
     }
 
     /**
-     * 查询相关进程列表
+     * 查询进程列表
      * @param string $cmd 任务指令
      * @param string $name 进程名称
      * @return array
@@ -109,15 +88,15 @@ class ProcessService extends Service
     {
         $list = [];
         if (static::iswin()) {
-            $lines = static::exec('wmic process where name="' . $name . '" get processid,CommandLine', true);
-            foreach ($lines as $line) if (static::_issub($line, $cmd) !== false) {
-                $attr = explode(' ', static::_trim($line));
+            $lines = static::exec("wmic process where name=\"{$name}\" get processid,CommandLine", true);
+            foreach ($lines as $line) if (is_numeric(stripos($line, $cmd))) {
+                $attr = explode(' ', trim(preg_replace('#\s+#', ' ', $line)));
                 $list[] = ['pid' => array_pop($attr), 'cmd' => join(' ', $attr)];
             }
         } else {
             $lines = static::exec("ps ax|grep -v grep|grep \"{$cmd}\"", true);
-            foreach ($lines as $line) if (static::_issub($line, $cmd) !== false) {
-                $attr = explode(' ', static::_trim($line));
+            foreach ($lines as $line) if (is_numeric(stripos($line, $cmd))) {
+                $attr = explode(' ', trim(preg_replace('#\s+#', ' ', $line)));
                 [$pid] = [array_shift($attr), array_shift($attr), array_shift($attr), array_shift($attr)];
                 $list[] = ['pid' => $pid, 'cmd' => join(' ', $attr)];
             }
@@ -126,7 +105,7 @@ class ProcessService extends Service
     }
 
     /**
-     * 关闭任务进程
+     * 关闭独立进程
      * @param integer $pid 进程号
      * @return boolean
      */
@@ -148,19 +127,10 @@ class ProcessService extends Service
      */
     public static function exec(string $command, $outarr = false)
     {
-        exec($command, $output);
-        return $outarr ? $output : CodeExtend::text2utf8(join("\n", $output));
-    }
-
-    /**
-     * 执行外部程序
-     * @param string $command 执行指令
-     * @param mixed $output
-     * @return false|string
-     */
-    public static function system(string $command, &$output = null)
-    {
-        return system($command, $output);
+        $process = Process::fromShellCommandline($command);
+        $process->setWorkingDirectory(Library::$sapp->getRootPath())->run();
+        $output = str_replace("\r\n", "\n", CodeExtend::text2utf8($process->getOutput()));
+        return $outarr ? explode("\n", $output) : trim($output);
     }
 
     /**
@@ -169,25 +139,33 @@ class ProcessService extends Service
      */
     public static function iswin(): bool
     {
-        return PATH_SEPARATOR === ';';
+        return defined('PHP_WINDOWS_VERSION_BUILD');
     }
 
     /**
      * 检查文件是否存在
-     * @param string $file 待检查的文件
+     * @param string $file 文件路径
      * @return boolean
      */
     public static function isfile(string $file): bool
     {
-        if (static::iswin()) {
-            return static::exec("if exist \"{$file}\" echo 1") === '1';
-        } else {
-            return static::exec("if [ -f \"{$file}\" ];then echo 1;fi") === '1';
+        try {
+            return $file !== '' && is_file($file);
+        } catch (\Error|\Exception $exception) {
+            try {
+                if (self::iswin()) {
+                    return self::exec("if exist \"{$file}\" echo 1") === '1';
+                } else {
+                    return self::exec("if [ -f \"{$file}\" ];then echo 1;fi") === '1';
+                }
+            } catch (\Error|\Exception $exception) {
+                return false;
+            }
         }
     }
 
     /**
-     * 输出文档消息
+     * 输出命令行消息
      * @param string $message 输出内容
      * @param integer $backline 回退行数
      * @return void
@@ -199,23 +177,31 @@ class ProcessService extends Service
     }
 
     /**
-     * 清除空白字符过滤
-     * @param string $content
+     * 获取运行参数
+     * @param string $field 指定字段
      * @return string
      */
-    private static function _trim(string $content): string
+    private static function getRunVar(string $field): string
     {
-        return preg_replace('|\s+|', ' ', strtr(trim($content), '\\', '/'));
+        $file = syspath('vendor/binarys.php');
+        if (file_exists($file) && is_array($binarys = include $file)) {
+            return $binarys[$field] ?? '';
+        } else {
+            return '';
+        }
     }
 
     /**
-     * 判断是否包含字符串
-     * @param string $content
-     * @param string $searcher
-     * @return boolean
+     * 获取 PHP 路径
+     * @return string
      */
-    private static function _issub(string $content, string $searcher): bool
+    private static function getPhpExec(): string
     {
-        return stripos(static::_trim($content), static::_trim($searcher)) !== false;
+        static $phpExec;
+        if ($phpExec) return $phpExec;
+        if (self::isfile($phpExec = self::getRunVar('php'))) return $phpExec;
+        $phpExec = str_replace('/sbin/php-fpm', '/bin/php', PHP_BINARY);
+        $phpExec = preg_replace('#-(cgi|fpm)(\.exe)?$#', '$2', $phpExec);
+        return self::isfile($phpExec) ? $phpExec : $phpExec = 'php';
     }
 }

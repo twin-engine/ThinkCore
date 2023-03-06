@@ -11,6 +11,7 @@
         "ext-iconv": "*",
         "ext-openssl": "*",
         "ext-mbstring": "*",
+        "symfony/process": "^5.4 || ^6.0 || *",
         "topthink/framework": "^6.0",
         "topthink/think-migration": "^3.0",
         "alibabacloud/green": "^1.8",
