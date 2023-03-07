@@ -127,8 +127,12 @@ class PageHelper extends Helper
 
     /**
      * 特殊字段的后处理（图片类、重要信息脱敏）
-     * @param Model|BaseQuery|string $dbQuery
+     * @param $query
      * @param array $items
+     * @return void
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
      private function fieldAfterMk($query, array &$items)
      {

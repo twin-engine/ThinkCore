@@ -5,6 +5,9 @@ namespace think\admin\helper;
 
 use think\admin\Helper;
 use think\db\BaseQuery;
+use think\db\exception\DataNotFoundException;
+use think\db\exception\DbException;
+use think\db\exception\ModelNotFoundException;
 use think\db\Query;
 use think\Model;
 use think\admin\service\DataScopeService;
@@ -57,7 +60,7 @@ class QueryHelper extends Helper
     {
         $this->page = PageHelper::instance();
         //增加数据访问权限（数据隔离）
-        $this->input = $this->setPrermission($this->getInputData($input));
+        $this->input = $this->setPermission($this->getInputData($input));
         $this->query = $this->page->autoSortQuery($dbQuery);
         if (is_callable($callable)) {
             call_user_func($callable, $this, $this->query);
@@ -318,7 +321,7 @@ class QueryHelper extends Helper
      * $param array|string|null $input
      * @retrun array
      */
-    private function setPrermission($input):array
+    private function setPermission($input):array
     {
         if(empty($input['tenant_id'])){
             $input['tenant_id'] = AdminService::getTenantId();
@@ -329,20 +332,23 @@ class QueryHelper extends Helper
 
     /**
      * 设置 IN 区间查询(权限处理)
-     * @param string|array $fields 查询字段
-     * @param string $split 输入分隔符
-     * @param string|array|null $input 输入数据
-     * @param string $alias 别名分割符
+     * @param $fields
+     * @param $input
      * @return $this
      */
     public function dataScope($fields, $input = null): QueryHelper
     {
-        if (AdminService::instance()->isSuper()) {
+        if (AdminService::isSuper()) {
             return $this;
         }
         $data = $this->getInputData($input ?: $this->input);
-        
-        $userIds =  DataScopeService::instance()->setDataScope();
+
+        try {
+            $userIds = DataScopeService::instance()->setDataScope();
+        } catch (\Exception $exception) {
+            $userIds = [];
+            trace_file($exception);
+        }
 
         if (empty($userIds)) {
             return $this;
