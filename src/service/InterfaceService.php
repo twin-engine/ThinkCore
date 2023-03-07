@@ -152,7 +152,7 @@ class InterfaceService extends Service
     {
         if ($data === '{-null-}') $data = new stdClass();
         $this->baseResponse(lang('think_library_response_failed'), [
-            'code' => $code, 'info' => $info, 'data' => $data,
+            'code' => $code, 'message' => $info, 'data' => $data,
         ]);
     }
 
@@ -166,7 +166,7 @@ class InterfaceService extends Service
     {
         if ($data === '{-null-}') $data = new stdClass();
         $this->baseResponse(lang('think_library_response_success'), [
-            'code' => $code, 'info' => $info, 'data' => $data,
+            'code' => $code, 'message' => $info, 'data' => $data,
         ]);
     }
 
@@ -202,7 +202,7 @@ class InterfaceService extends Service
     {
         $array = $this->signData($data);
         throw new HttpResponseException(json([
-            'code' => $code, 'info' => $info, 'time' => $array['time'],
+            'code' => $code, 'message' => $info, 'time' => $array['time'],
             'sign' => $array['sign'], 'appid' => $array['appid'], 'nostr' => $array['nostr'],
             'data' => $this->type !== 'json' ? json_decode($array['data'], true) : $array['data'],
         ]));

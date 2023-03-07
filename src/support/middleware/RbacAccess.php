@@ -81,12 +81,12 @@ class RbacAccess
 
         // 无权限已登录，提示异常
         if (AdminService::isLogin()) {
-            return json(['code' => 0, 'info' => lang('think_library_not_auth')])->header($header);
+            return json(['code' => 0, 'message' => lang('think_library_not_auth')])->header($header);
         }
 
         // 无权限未登录，跳转登录
         $loginUrl = $this->app->config->get('app.rbac_login') ?: 'admin/login/index';
         $loginPage = preg_match('#^(/|https?://)#', $loginUrl) ? $loginUrl : sysuri($loginUrl);
-        return json(['code' => 0, 'info' => lang('think_library_not_login'), 'url' => $loginPage])->header($header);
+        return json(['code' => 0, 'message' => lang('think_library_not_login'), 'url' => $loginPage])->header($header);
     }
 }
