@@ -119,6 +119,21 @@ class AdminService extends Service
     }
 
     /**
+     * 获取租户ID
+     * @return int
+     */
+    public static function getTenantId(): int
+    {
+        if(static::getJwtUserId()>0){
+            return Library::$sapp->session->get('user.tenant_id', '');
+        }elseif($tenantId = Library::$sapp->request->header('TenantId')){
+            return (int)$tenantId;
+        }else{
+            return 0;
+        }
+    }
+
+    /**
      * 获取用户扩展数据
      * @param null|string $field
      * @param null|mixed $default

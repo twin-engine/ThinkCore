@@ -320,14 +320,10 @@ class QueryHelper extends Helper
      */
     private function setPrermission($input):array
     {
-        if(!empty($input['tenant_id'])){
-            return $input;
-        }else{
-            $input['tenant_id'] = $this->app->request->request('tenant_id');
-            $input['tenant_id'] = $input['tenant_id'] ?: $this->app->request->request('tenantId');
-            $input['tenant_id'] = $input['tenant_id'] ?: $this->app->request->header('TenantId');
-            return $input;
+        if(empty($input['tenant_id'])){
+            $input['tenant_id'] = AdminService::getTenantId();
         }
+        return $input;
     }
 
 
