@@ -13,7 +13,6 @@ use think\admin\model\SystemUser;
 use think\admin\model\SysUserRole;
 use think\admin\model\SysMenu;
 use think\admin\model\SysRoleMenu;
-use think\admin\model\SystemUserToken;
 use think\admin\Service;
 use think\admin\extend\JwtExtend;
 use think\helper\Str;
@@ -31,7 +30,7 @@ class AdminService extends Service
      */
     public static function isLogin(): bool
     {
-        return static::getJwtUserId() > 0;
+        return static::getUserId() > 0;
     }
 
     /**
@@ -40,7 +39,16 @@ class AdminService extends Service
      */
     public static function isSuper(): bool
     {
-        return static::getJwtUserName() === static::getSuperName();
+        return static::getUserName() === static::getSuperName() && static::getAdminType() === '100';
+    }
+
+    /**
+     * 是否为租户管理员（租户创始人）
+     * @return boolean
+     */
+    public static function isAdmin(): bool
+    {
+        return static::getAdminType() === '200';
     }
 
     /**
@@ -53,32 +61,21 @@ class AdminService extends Service
     }
 
     /**
-     * 获取后台用户ID
-     * 修改用户ID获取方法（前后端分离） 2022/4/11 by rotoos
-     * @return integer
+     * 获取户类型值 超管100,租户创始人200,普通管理员300
+     * @return string
      */
-    public static function getUserId(): int
+    public static function getAdminType(): string
     {
-        $token = Library::$sapp->request->header('Access-Token');
-        $type = Library::$sapp->request->header('Api-Name');
-        if($token && $type){
-            $user = SystemUserToken::mk()->where(['token'=>$token,'type'=>$type])->where('time','>=',time())->findOrEmpty();
-            if($user['uuid']){
-                return intval($user['uuid']);
-            }else{
-                return 0;
-            }
-        }else{
-            return 0;
-        }
+        return Library::$sapp->session->get('user.user_type', '');
     }
+
 
     /**
      * 获取后台用户ID:Jwt方式
      * 修改用户ID获取方法（前后端分离）
      * @return integer
      */
-    public static function getJwtUserId(): int
+    public static function getUserId(): int
     {
         $token = Library::$sapp->request->header('Jwt-Token');
         if($token) $payloadData = JwtExtend::verifyToken($token);
@@ -94,29 +91,15 @@ class AdminService extends Service
      * 修改用户名获取方法（前后端分离）
      * @return string
      */
-    public static function getJwtUserName(): string
+    public static function getUserName(): string
     {
-        if(static::getJwtUserId()>0){
+        if(static::getUserId()>0){
             return Library::$sapp->session->get('user.username', '');
         }else{
             return '';
         }
     }
 
-    /**
-     * 获取后台用户名称
-     * 修改用户名获取方法（前后端分离） 2022/4/11 by rotoos
-     * @return string
-     */
-    public static function getUserName(): string
-    {
-        if(static::getUserId()>0){
-            $user = SystemUser::mk()->field('username')->where(['id'=>static::getUserId()])->where(['status'=>0])->findOrEmpty();
-            return $user['username'];
-        }else{
-            return '';
-        }
-    }
 
     /**
      * 获取租户ID
@@ -124,7 +107,7 @@ class AdminService extends Service
      */
     public static function getTenantId(): int
     {
-        if(static::getJwtUserId()>0){
+        if(static::getUserId()>0){
             return Library::$sapp->session->get('user.tenant_id', '');
         }elseif($tenantId = Library::$sapp->request->header('TenantId')){
             return (int)$tenantId;

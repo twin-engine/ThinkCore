@@ -5,9 +5,6 @@ namespace think\admin\helper;
 
 use think\admin\Helper;
 use think\db\BaseQuery;
-use think\db\exception\DataNotFoundException;
-use think\db\exception\DbException;
-use think\db\exception\ModelNotFoundException;
 use think\db\Query;
 use think\Model;
 use think\admin\service\DataScopeService;
