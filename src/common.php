@@ -761,3 +761,35 @@ if (!function_exists('array_iconv')) {
         }
     }
 }
+if (!function_exists('base64_image_content')) {
+    /**
+     * 将Base64图片转换为本地图片并保存
+     * @param $base64_image_content
+     * @param $path
+     * @return false|string
+     */
+    function base64_image_content($base64_image_content, $path)
+    {
+        //匹配出图片的格式
+        if (preg_match('/^(data:\s*image\/(\w+);base64,)/', $base64_image_content, $result)) {
+            //后缀
+            $type = $result[2];
+            //创建文件夹，以年月日
+            $filePath = $path.date('Ymd',time())."/";
+            if(!file_exists($filePath)){
+                //检查是否有该文件夹，如果没有就创建，并给予最高权限
+                mkdir($filePath, 0700);
+            }
+            $new_file = $filePath . time() . "_" . CodeExtend::random(10) . ".{$type}";    //图片名以时间命名
+            //保存为文件
+            if (file_put_contents($new_file, base64_decode(str_replace($result[1], '', $base64_image_content)))) {
+                //返回这个图片的路径
+                return $new_file;
+            } else {
+                return false;
+            }
+        } else {
+            return false;
+        }
+    }
+}
