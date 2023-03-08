@@ -1,5 +1,4 @@
 <?php
-
 namespace think\admin\support\command;
 
 use think\admin\Command;
