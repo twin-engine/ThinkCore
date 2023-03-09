@@ -27,6 +27,11 @@ class ColorQrcodeExtend
      */
     public function createColorQrcode(array $colors, string $text): string
     {
+        /**
+         * 使用如下：
+         * $qr = new colorQrcodeExtend();
+         * $qr->createColorQrcode(['#087', '#431', '#a4d', '#a2d'],'9226988501124');
+         */
         $this->code = md5($text);
         $color = Factory::color($colors);
         (new QrCodePlus)
@@ -40,6 +45,11 @@ class ColorQrcodeExtend
                 imagepng($handle,$img);
             })
             ->output($color);
-        return $qrcode = '/qrcode/'.$this->code.'.png';
+        $qrcode = '/qrcode/'.$this->code.'.png';
+        if(file_exists($qrcode)){
+            return $qrcode;
+        }else{
+            return '';
+        }
     }
 }
