@@ -7,8 +7,6 @@ namespace think\admin\service;
 use think\admin\Exception;
 use think\admin\extend\DataExtend;
 use think\admin\Library;
-use think\admin\model\SystemAuth;
-use think\admin\model\SystemNode;
 use think\admin\model\SystemUser;
 use think\admin\model\SysUserRole;
 use think\admin\model\SysMenu;
@@ -229,31 +227,13 @@ class AdminService extends Service
         return DataExtend::arr2tree(array_reverse($nodes), 'node', 'pnode', '_sub_');
     }
 
+
     /**
-     * 初始化用户权限
+     * 初始化用户权限(前后端分离）需在用户登录时刷新权限
      * @param boolean $force 强刷权限
      * @return array
      */
     public static function apply(bool $force = false): array
-    {
-        if ($force) static::clear();
-        if (($uuid = static::getUserId()) <= 0) return [];
-        $user = SystemUser::mk()->where(['id' => $uuid])->findOrEmpty()->toArray();
-        if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {
-            $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');
-            if (!empty($aids)) $nodes = SystemNode::mk()->distinct()->whereIn('auth', $aids)->column('node');
-        }
-        $user['nodes'] = $nodes ?? [];
-        Library::$sapp->session->set('user', $user);
-        return $user;
-    }
-
-    /**
-     * 初始化用户权限(前后端分离）需在用户登录时刷新权限2023/2/24
-     * @param boolean $force 强刷权限
-     * @return array
-     */
-    public static function apiApply(bool $force = false): array
     {
         if ($force) static::clear();
         if (($uuid = static::getUserId()) <= 0) return [];

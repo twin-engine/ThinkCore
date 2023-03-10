@@ -5,7 +5,7 @@ namespace think\admin\extend;
 
 use Exception;
 use think\admin\Library;
-use think\admin\model\SystemMenu;
+use think\admin\model\SysMenu;
 use think\admin\service\SystemService;
 use think\helper\Str;
 
@@ -25,7 +25,7 @@ class PhinxExtend
     public static function write2menu(array $zdata, $check = []): bool
     {
         try { // 检查是否需要写入菜单
-            if (!empty($check) && SystemMenu::mk()->where($check)->count() > 0) {
+            if (!empty($check) && SysMenu::mk()->where($check)->count() > 0) {
                 return false;
             }
         } catch (Exception $exception) {
@@ -33,11 +33,11 @@ class PhinxExtend
         }
         // 循环写入系统菜单数据
         foreach ($zdata as $one) {
-            $pid1 = static::_write2menu($one);
+            $pid1 = static::_write2menu($one,0,'0');
             if (!empty($one['subs'])) foreach ($one['subs'] as $two) {
-                $pid2 = static::_write2menu($two, $pid1);
+                $pid2 = static::_write2menu($two, $pid1, '0,'.$pid1);
                 if (!empty($two['subs'])) foreach ($two['subs'] as $thr) {
-                    static::_write2menu($thr, $pid2);
+                    static::_write2menu($thr, $pid2, '0,'.$pid1.','.$pid2);
                 }
             }
         }
@@ -48,19 +48,24 @@ class PhinxExtend
      * 单个写入菜单
      * @param array $menu 菜单数据
      * @param mixed $ppid 上级菜单
+     * @param mixed $level 级别
      * @return integer|string
      */
-    private static function _write2menu(array $menu, $ppid = 0)
+    private static function _write2menu(array $menu, $ppid = 0, $level = '0')
     {
-        return SystemMenu::mk()->insertGetId([
-            'pid'    => $ppid,
-            'url'    => empty($menu['url']) ? (empty($menu['node']) ? '#' : $menu['node']) : $menu['url'],
+        return SysMenu::mk()->insertGetId([
+            'parent_id'    => $ppid,
+            'name'    => $menu['name'],
+            'code'   => $menu['code'],
+            'level'   => $level,
+            'type'   => $menu['type'],
+            'icon'  => $menu['icon'] ?? '',
+            'router' => $menu['router'] ?? '',
+            'component' => $menu['component'],
+            'permission'    => $menu['permission'],
+            'application'   => $menu['application'],
             'sort'   => $menu['sort'] ?? 0,
-            'icon'   => $menu['icon'] ?? '',
-            'node'   => empty($menu['node']) ? (empty($menu['url']) ? '' : $menu['url']) : $menu['node'],
-            'title'  => $menu['name'] ?? ($menu['title'] ?? ''),
-            'params' => $menu['params'] ?? '',
-            'target' => $menu['target'] ?? '_self',
+            'remark'  => $menu['remark'] ?? '',
         ]);
     }
 
@@ -92,13 +97,13 @@ class PhinxExtend
     public static function create2package(array $tables = [], string $class = 'InstallPackage'): array
     {
         // 处理菜单数据
-        [$menuData, $menuList] = [[], SystemMenu::mk()->where(['status' => 1])->order('sort desc,id asc')->select()->toArray()];
-        foreach (DataExtend::arr2tree($menuList) as $sub1) {
-            $one = ['name' => $sub1['title'], 'icon' => $sub1['icon'], 'url' => $sub1['url'], 'node' => $sub1['node'], 'params' => $sub1['params'], 'subs' => []];
+        [$menuData, $menuList] = [[], SysMenu::mk()->where(['is_deleted' => 0])->order('sort desc,id asc')->select()->toArray()];
+        foreach (DataExtend::arr2tree($menuList,'id','parent_id') as $sub1) {
+            $one = ['name' => $sub1['name'], 'icon' => $sub1['icon'], 'code' => $sub1['code'], 'type' => $sub1['type'], 'router' => $sub1['router'], 'component' => $sub1['component'], 'permission' => $sub1['permission'], 'application' => $sub1['application'], 'subs' => []];
             if (!empty($sub1['sub'])) foreach ($sub1['sub'] as $sub2) {
-                $two = ['name' => $sub2['title'], 'icon' => $sub2['icon'], 'url' => $sub2['url'], 'node' => $sub2['node'], 'params' => $sub2['params'], 'subs' => []];
+                $two = ['name' => $sub2['name'], 'icon' => $sub2['icon'], 'code' => $sub2['code'], 'type' => $sub2['type'], 'router' => $sub2['router'], 'component' => $sub2['component'], 'permission' => $sub2['permission'], 'application' => $sub2['application'], 'subs' => []];
                 if (!empty($sub2['sub'])) foreach ($sub2['sub'] as $sub3) {
-                    $two['subs'][] = ['name' => $sub3['title'], 'url' => $sub3['url'], 'node' => $sub3['node'], 'icon' => $sub3['icon'], 'params' => $sub3['params']];
+                    $two['subs'][] = ['name' => $sub3['name'], 'icon' => $sub3['icon'], 'code' => $sub3['code'], 'type' => $sub3['type'], 'router' => $sub3['router'], 'component' => $sub3['component'], 'permission' => $sub3['permission'], 'application' => $sub3['application']];
                 }
                 if (empty($two['subs'])) unset($two['subs']);
                 $one['subs'][] = $two;
