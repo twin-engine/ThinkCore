@@ -19,36 +19,46 @@ class EmailService extends Service
 {
     /**
      * emailHost
+     * @var string
      */
     protected $emailHost;
 
     /**
      * emailUsername
+     * @var string
      */
     protected $emailUsername;
     
     /**
      * emailPassword
+     * @var string
      */
     protected $emailPassword;
     
     /**
      * emailPort
+     * @var string
      */
     protected $emailPort;
     
     /**
      * emailFrom
+     * @var string
      */
     protected $emailFrom;
     
     /**
      * emailFromName
+     * @var string
      */
     protected $emailFromName;
 
     /**
      * 控制器初始化
+     * @return void
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function initialize()
     {
@@ -59,9 +69,15 @@ class EmailService extends Service
         $this->emailFrom = syconfig('EMAIL','emailFrom');
         $this->emailFromName = syconfig('EMAIL','emailFromName');
     }
-    
+
     /**
      * 邮件发送
+     * @param $to
+     * @param $subject
+     * @param $content
+     * @param $addAttachment
+     * @param $code
+     * @return array
      */
     public function sendEmail($to, $subject='',$content='',$addAttachment='',$code='')
     {

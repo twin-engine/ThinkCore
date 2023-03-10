@@ -72,7 +72,7 @@ class Queue extends Command
         $this->addArgument('action', Argument::OPTIONAL, 'stop|start|status|query|listen|clean|dorun|webstop|webstart|webstatus', 'listen');
         $this->addArgument('code', Argument::OPTIONAL, 'Taskcode');
         $this->addArgument('spts', Argument::OPTIONAL, 'Separator');
-        $this->setDescription('Asynchronous Command Queue Task for ThinkAdmin');
+        $this->setDescription('Asynchronous Command Queue Task for DeAdmin');
     }
 
     /**

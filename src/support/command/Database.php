@@ -24,7 +24,7 @@ class Database extends Command
     {
         $this->setName('xadmin:database');
         $this->addArgument('action', Argument::OPTIONAL, 'repair|optimize', 'optimize');
-        $this->setDescription('Database Optimize and Repair for ThinkAdmin');
+        $this->setDescription('Database Optimize and Repair for DeAdmin');
     }
 
     /**

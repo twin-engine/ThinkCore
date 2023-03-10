@@ -26,7 +26,7 @@ class Replace extends Command
         $this->setName('xadmin:replace');
         $this->addArgument('search', Argument::OPTIONAL, '查找替换的字符内容', '');
         $this->addArgument('replace', Argument::OPTIONAL, '目标替换的字符内容', '');
-        $this->setDescription('Database Character Field Replace for ThinkAdmin');
+        $this->setDescription('Database Character Field Replace for DeAdmin');
     }
 
     /**

@@ -11,7 +11,7 @@ use think\admin\model\SysTenant;
 
 /*
  * 蚂蚁区块链接口
- * Class Test
+ * Class BlockService
  */
 class BlockService extends Service
 {
@@ -32,33 +32,40 @@ class BlockService extends Service
      * @var string
      */
     protected $url;
-    
+
     /**
-     * 链 ID 打开合约在链接上
-     * $var string
+     * 链 ID (打开合约在链接上)
+     * @var string
      */
     protected $bizid;
-    
+
     /**
      * 开放联盟链access-id
+     * @var string
      */
     
     protected $accessId;
-    
+
     /**
      * mykmsKeyId
+     * @var string
      */
      
      protected $mykmsKeyId;
-     
+
     /**
      * 蚂蚁租户ID
+     * @var string
      */
      protected $ant_tenantid;
-     
-     
-     /**
+
+
+    /**
      * 控制器初始化
+     * @return void
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
      */
     protected function initialize()
     {
@@ -70,11 +77,11 @@ class BlockService extends Service
         $this->antPrivate = syconfig('ANTBLOCK','antPrivate');
         $this->block_token = $this->getToken();
     }
-    
-    /*
-    *与蚂蚁服务器握手，获取Token
-    *
-    */
+
+    /**
+     * 与蚂蚁服务器握手，获取Token
+     * @return mixed|string
+     */
     public function getToken()
     {
         if (!empty($this->block_token)) {
@@ -99,10 +106,15 @@ class BlockService extends Service
         }
         return $this->block_token = $res['data'];
     }
-    
-    /*
-    *检测是否有足够的GAS
-    */
+
+    /**
+     * 检测是否有足够的GAS
+     * @param $tenant_id
+     * @return array|bool
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
     public function checkGas($tenant_id)
     {
         if(!$tenant_id) return [];
@@ -117,12 +129,18 @@ class BlockService extends Service
             return false;
         }
     }
-    
-    /*
-    *存证Api
-    *@params string $content 存证内容 字符串
-    *@return array
-    */
+
+    /**
+     * 存证Api
+     * @param $uid
+     * @param $type
+     * @param $content
+     * @param $oldContent
+     * @return false|mixed
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
     public function existingEvidence($uid,$type,$content,$oldContent)
     {
         if(!$this->checkGas($this->app->request->header('TenantId'))) return false;
@@ -167,10 +185,13 @@ class BlockService extends Service
         }
         return $result;
     }
-    
-    /*
-    *查询交易(区块值和内容)
-    */
+
+    /**
+     * 查询交易(区块值和内容)
+     * @param $token
+     * @param $hash
+     * @return mixed
+     */
     public function queryTransaction($token,$hash)
     {
         $params = [   //固定的参数部分
@@ -184,10 +205,13 @@ class BlockService extends Service
         $res = json_decode($result,true);
         return json_decode($res['data'],true);
     }
-    
-    /*
-    *查询交易回执
-    */
+
+    /**
+     * 查询交易回执
+     * @param $token
+     * @param $hash
+     * @return mixed
+     */
     public function TransactionReceipt($token,$hash)
     {
         $params = [
@@ -202,10 +226,13 @@ class BlockService extends Service
         $r = json_decode($res['data'],true);
         return $r['gasUsed'];
     }
-    
-    /*
-    *查询块头
-    */
+
+    /**
+     * 查询块头
+     * @param $token
+     * @param $requestStr
+     * @return mixed
+     */
     public function BlockHeader($token,$requestStr)
     {
         $params = [
@@ -216,13 +243,15 @@ class BlockService extends Service
             'token' => $token
         ];
         list($code, $result) = http_post_data($this->url.'/api/contract/chainCall', json_encode($params));
-        //echo $result;
         return $result;
     }
-    
-    /*
-    *查询块体
-    */
+
+    /**
+     * 查询块体
+     * @param $token
+     * @param $requestStr
+     * @return mixed
+     */
     public function BlockBody($token,$requestStr)
     {
         $params = [
@@ -233,13 +262,14 @@ class BlockService extends Service
             'token' => $token
         ];
         list($code, $result) = http_post_data($this->url.'/api/contract/chainCall', json_encode($params));
-        //echo $result;
         return $result;
     }
-    
-    /*
-    *查询最新块高
-    */
+
+    /**
+     * 查询最新块高
+     * @param $token
+     * @return mixed
+     */
     public function NewBlockHeight($token)
     {
         $params = [
@@ -249,13 +279,14 @@ class BlockService extends Service
             'token' => $token
         ];
         list($code, $result) = http_post_data($this->url.'/api/contract/chainCall', json_encode($params));
-        //echo $result;
         return $result;
     }
-    
-    /*
-    *查询账户
-    */
+
+    /**
+     * 查询账户
+     * @param $token
+     * @return mixed
+     */
     public function queryAccount($token)
     {
         $params = [
@@ -269,13 +300,19 @@ class BlockService extends Service
         //echo $result;
         return $result;
     }
-    
-    /*
-    *异步调用 Solidity 合约 Api
-    */
-    public function solidityAdd($unitcode,$token)
+
+    /**
+     * 异步调用 Solidity 合约 Api
+     * @param $tenant_id
+     * @param $token
+     * @return void
+     * @throws \think\db\exception\DataNotFoundException
+     * @throws \think\db\exception\DbException
+     * @throws \think\db\exception\ModelNotFoundException
+     */
+    public function solidityAdd($tenant_id,$token)
     {
-        $this->checkGas($unitcode);
+        $this->checkGas($tenant_id);
         $params = [
             'orderId' => CodeExtend::uniqidNumber(10),
             'bizid' => $this->bizid,
@@ -292,14 +329,6 @@ class BlockService extends Service
             'tenantid' => $this->ant_tenantid 
         ];
         $params = json_encode($params);
-        //p($params);
         list($code, $result) = http_post_data($this->url.'/api/contract/chainCallForBiz', $params);
-        //p($result);
-        //echo $result;
-        /*if($result){
-            $this->success('操作成功',$result);
-        }else{
-            $this->error('操作失败');
-        }*/
     }
 }

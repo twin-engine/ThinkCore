@@ -4,8 +4,8 @@ declare (strict_types=1);
 
 namespace think\admin\support\command;
 
-use think\admin\service\BlockService;
 use think\admin\Command;
+use think\admin\service\BlockService;
 
 /**
  * 上链数据管理指令
@@ -19,8 +19,8 @@ class Block extends Command
      */
     protected function configure()
     {
-        $this->setName('xadmin:blockchainall');
-        $this->setDescription('BlockChain Data Synchronize for DualEngine');
+        $this->setName('xadmin:blockchain');
+        $this->setDescription('BlockChain Data Synchronize for DeAdmin');
     }
 
     /**

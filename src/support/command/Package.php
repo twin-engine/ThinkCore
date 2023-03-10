@@ -24,7 +24,7 @@ class Package extends Command
         $this->setName('xadmin:package');
         $this->addOption('all', 'a', Option::VALUE_NONE, 'Packaging All Tables');
         $this->addArgument('table', Argument::OPTIONAL, 'Packaging Custom Tables', '');
-        $this->setDescription('Generate System Install Package for ThinkAdmin');
+        $this->setDescription('Generate System Install Package for DeAdmin');
     }
 
     /**

@@ -27,7 +27,7 @@ class Publish extends Command
         $this->setName('xadmin:publish');
         $this->addOption('force', 'f', Option::VALUE_NONE, 'Overwrite any existing files');
         $this->addOption('migrate', 'm', Option::VALUE_NONE, 'Execute phinx database script');
-        $this->setDescription('Publish Plugs and Config Assets for ThinkAdmin');
+        $this->setDescription('Publish Plugs and Config Assets for DeAdmin');
     }
 
     /**

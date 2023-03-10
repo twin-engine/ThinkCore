@@ -239,9 +239,9 @@ class AdminService extends Service
         if ($force) static::clear();
         if (($uuid = static::getUserId()) <= 0) return [];
         $user = SystemUser::mk()->where(['id' => $uuid])->findOrEmpty()->toArray();
-        if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {//$user['authorize']权限组sys_role表获取
-            $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');//sys_user_role表
-            if (!empty($aids)) $nodes = SystemNode::mk()->distinct()->whereIn('auth', $aids)->column('node');//具体权限需把:替换成/
+        if (!static::isSuper() && count($aids = str2arr($user['authorize'])) > 0) {
+            $aids = SystemAuth::mk()->where(['status' => 1])->whereIn('id', $aids)->column('id');
+            if (!empty($aids)) $nodes = SystemNode::mk()->distinct()->whereIn('auth', $aids)->column('node');
         }
         $user['nodes'] = $nodes ?? [];
         Library::$sapp->session->set('user', $user);
