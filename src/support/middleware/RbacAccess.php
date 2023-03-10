@@ -85,7 +85,7 @@ class RbacAccess
         }
 
         // 无权限未登录，跳转登录
-        $loginUrl = $this->app->config->get('app.rbac_login') ?: 'admin/login/index';
+        $loginUrl = $this->app->config->get('app.rbac_login') ?: '/#/userCenter/login';
         $loginPage = preg_match('#^(/|https?://)#', $loginUrl) ? $loginUrl : sysuri($loginUrl);
         return json(['code' => 0, 'message' => lang('think_library_not_login'), 'url' => $loginPage])->header($header);
     }
